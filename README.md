@@ -61,6 +61,12 @@ docker-compose exec app-php php artisan migrate
 docker-compose exec app-php php artisan migrate:rollback
 ```
 
+### DB削除（マイグレーションダウンではない）→マイグレーション実行→シーダー実行
+
+```shell
+docker-compose exec app-php php artisan migrate:fresh --seed
+```
+
 ## シーダー
 
 ### シーダーファイルの作成

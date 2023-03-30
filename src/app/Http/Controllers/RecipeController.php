@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Recipe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class RecipeController extends Controller
@@ -20,8 +21,8 @@ class RecipeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $recepes = Recipe::all();
-        return response()->json(['recipes' => $recepes->toArray()]);
+        $recipes = Recipe::all();
+        return response()->json(['recipes' => $recipes->toArray()]);
     }
 
     /**
@@ -31,16 +32,17 @@ class RecipeController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $recepe = Recipe::find($id);
+        /** @var Recipe $recipe */
+        $recipe = Recipe::find($id);
 
         // エラー処理
-        if (is_null($recepe)) {
+        if (is_null($recipe)) {
             return response()->json([
                 'messages' => 'Target recipe is not found.'
             ], self::STATUS_CODE_NOT_FOUND);
         }
 
-        return  response()->json($recepe->toArray());
+        return  response()->json($recipe->toArray());
     }
 
 
@@ -67,8 +69,10 @@ class RecipeController extends Controller
 
         // 値をセットして保存
         $recipe = new Recipe;
-        $recipe->setRequestParamIfExists($request);
-        $recipe->save();
+        DB::transaction(function () use ($request, $recipe) {
+            $recipe->setRequestParamIfExists($request);
+            $recipe->save();
+        });
 
         return response()->json(
             $recipe->toArray(),
@@ -83,6 +87,7 @@ class RecipeController extends Controller
      */
     public function update(int $id, Request $request): JsonResponse
     {
+        /** @var Recipe $recipe */
         $recipe = Recipe::find($id);
         if (is_null($recipe)) {
             return response()->json(
@@ -90,8 +95,10 @@ class RecipeController extends Controller
                 self::STATUS_CODE_NOT_FOUND);
         }
 
-        $recipe->setRequestParamIfExists($request);
-        $recipe->save();
+        DB::transaction(function () use ($request, $recipe) {
+            $recipe->setRequestParamIfExists($request);
+            $recipe->save();
+        });
 
         return response()->json($recipe->toArray());
     }
@@ -103,6 +110,7 @@ class RecipeController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
+        /** @var Recipe $recipe */
         $recipe = Recipe::find($id);
         if (is_null($recipe)) {
             return response()->json(
@@ -111,7 +119,9 @@ class RecipeController extends Controller
         }
 
         // recipesテーブルから削除
-        $recipe->delete();
+        DB::transaction(function () use ($recipe) {
+            $recipe->delete();
+        });
 
         return response()->json(
             [],
