@@ -120,54 +120,86 @@ Resources:
   HostSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: 'Allowing incoming SSH and ICMP from anywhere.'
+      GroupDescription: 'Allowing incoming SSH and ICMP.'
       VpcId: !Ref VPC
       SecurityGroupIngress:
         # Ping
         - IpProtocol: icmp
-          FromPort: '-1'
-          ToPort: '-1'
+          FromPort: -1
+          ToPort: -1
           CidrIp: '0.0.0.0/0'
         # SSH
         - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
+          FromPort: 22
+          ToPort: 22
           CidrIp: !Sub '${SSHAccessIp}/32'
       Tags:
         - Key: Name
           Value: 'laravel-dev-hostServer-securityGroup'
-#
-#  # アプリケーションサーバー
-#  AppServer:
-#    Type: 'AWS::EC2::Instance'
-#    Properties:
-#      ImageId: !Ref EC2ImageId
-#      InstanceType: 't2.micro'
-#      KeyName: !Ref KeyName
-#      SecurityGroupIds:
-#        - !Ref AppSecurityGroup
-#      SubnetId: !Ref PublicSubnet
-#      Tags:
-#        - Key: Name
-#          Value: 'laravel-dev-appServer-instance'
-#  # アプリケーションサーバーのセキュリティーグループ
-#  AppSecurityGroup:
-#    Type: 'AWS::EC2::SecurityGroup'
-#    Properties:
-#      GroupDescription: 'Allowing incoming HTTP'
-#      VpcId: !Ref VPC
-#      SecurityGroupIngress:
-#        - IpProtocol: ssh
-#          FromPort: 22
-#          ToPort: 22
-#          SourceSecurityGroupId: !Ref HostSecurityGroup
-#        - IpProtocol: tcp
-#          FromPort: 443
-#          ToPort: 443
-#      Tags:
-#        - Key: Name
-#          Value: 'laravel-dev-appServer-securityGroup'
+
+  ### アプリケーションサーバー関連
+  # アプリケーションサーバー
+  AppServer:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !Ref EC2ImageId
+      InstanceType: 't2.micro'
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
+          DeleteOnTermination: true # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
+          DeviceIndex: '0'      # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
+          SubnetId: !Ref PublicSubnet
+          GroupSet:
+            - !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-appServer-instance'
+      UserData:
+        # -x: 実行したコマンドを出力するデバッグモードを有効
+        # bash -ex << "TRY" xxxxx TRY: ヒアドキュメントを使用してシェルスクリプトの一部を実行する。xxxxxを実行。
+        # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
+        # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
+        'Fn::Base64': !Sub |
+          #!/bin/bash -x
+          bash -ex << "TRY"
+            yum -y update
+            yum -y install httpd
+            service httpd start
+          TRY
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
+    DependsOn: VPCGatewayAttachment
+
+  # アプリケーションサーバーのセキュリティーグループ
+  AppSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allowing incoming HTTP and HTTPS'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # SSH（踏み台ホストのセキュリティーグループのみOK）
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref HostSecurityGroup
+        # HTTP
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        # HTTPS
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-appServer-securityGroup'
+
 Outputs:
   HostServerPublicName:
     Value: !Sub ${HostServer.PublicDnsName}
-    Description: 'Public Name of Host to connect via SSH as user ec2-user.'
+    Description: 'Public Name of Host Server to connect via SSH as user ec2-user.'
+  AppServerPublicName:
+    Value: !Sub ${AppServer.PublicDnsName}
+    Description: 'Public Name of App Server to connect via SSH as user ec2-user.'
