@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'For laravel development environment'
+#Parameters:
+Resources:
+  ### VPC
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      # 各サブネットは 10.0.1.x, 10.0.2.x などになる
+      CidrBlock: '10.0.0.0/16'
+      # DNS ホスト名属性は、VPC内で起動されたインスタンスがパブリック IPアドレスに対応する
+      # パブリックDNS ホスト名を受け取るかどうかを決定します。
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-vpc'
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties: {}
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  ### パブリックサブネット関連
+  # サブネット
+  PublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: '10.0.1.0/24'
+      AvailabilityZone: 'ap-northeast-1a'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-public-subnet'
+  # ルートテーブル
+  PublicSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-public-subnet-route-table'
+  # サブネットとルートテーブルの関連付け
+  PublicSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicSubnetRouteTable
+  # InternetGatewayへのルート
+  PublicSubnetRouteToInternet:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+    DependsOn: VPCGatewayAttachment
+
+  ### プライベートサブネット関連
+  # サブネット
+  PrivateSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: '10.0.2.0/24'
+      AvailabilityZone: 'ap-northeast-1a'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-private-subnet'
+  # ルートテーブル
+  PrivateSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-private-subnet-route-table'
+  # サブネットとルートテーブルの関連付け
+  PrivateSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateSubnetRouteTable
+#Outputs:
