@@ -1,6 +1,20 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'For laravel development environment'
-#Parameters:
+Parameters:
+  KeyName:
+    Description: 'Key Pair name'
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: 'aws_goodistory_tokyo'
+  SSHAccessIp:
+    Description: 'Your public IP address to allow SSH access'
+    Type: String
+    AllowedPattern: '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
+    ConstraintDescription: 'Enter a valid IPv4 address'
+  EC2ImageId:
+    Description: 'ami'
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+
 Resources:
   ### VPC
   VPC:
@@ -82,4 +96,78 @@ Resources:
     Properties:
       SubnetId: !Ref PrivateSubnet
       RouteTableId: !Ref PrivateSubnetRouteTable
-#Outputs:
+
+  ### 踏み台サーバー関連
+  # 踏み台サーバー
+  HostServer:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !Ref EC2ImageId
+      InstanceType: 't2.micro'
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true  #  パブリック IP アドレスをインスタンスに関連付けるか
+          DeleteOnTermination: true # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
+          DeviceIndex: '0'      # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
+          SubnetId: !Ref PublicSubnet
+          GroupSet:
+            - !Ref HostSecurityGroup
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-hostServer-instance'
+    DependsOn: VPCGatewayAttachment
+  # 踏み台サーバーのセキュリティーグループ
+  HostSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allowing incoming SSH and ICMP from anywhere.'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # Ping
+        - IpProtocol: icmp
+          FromPort: '-1'
+          ToPort: '-1'
+          CidrIp: '0.0.0.0/0'
+        # SSH
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Sub '${SSHAccessIp}/32'
+      Tags:
+        - Key: Name
+          Value: 'laravel-dev-hostServer-securityGroup'
+#
+#  # アプリケーションサーバー
+#  AppServer:
+#    Type: 'AWS::EC2::Instance'
+#    Properties:
+#      ImageId: !Ref EC2ImageId
+#      InstanceType: 't2.micro'
+#      KeyName: !Ref KeyName
+#      SecurityGroupIds:
+#        - !Ref AppSecurityGroup
+#      SubnetId: !Ref PublicSubnet
+#      Tags:
+#        - Key: Name
+#          Value: 'laravel-dev-appServer-instance'
+#  # アプリケーションサーバーのセキュリティーグループ
+#  AppSecurityGroup:
+#    Type: 'AWS::EC2::SecurityGroup'
+#    Properties:
+#      GroupDescription: 'Allowing incoming HTTP'
+#      VpcId: !Ref VPC
+#      SecurityGroupIngress:
+#        - IpProtocol: ssh
+#          FromPort: 22
+#          ToPort: 22
+#          SourceSecurityGroupId: !Ref HostSecurityGroup
+#        - IpProtocol: tcp
+#          FromPort: 443
+#          ToPort: 443
+#      Tags:
+#        - Key: Name
+#          Value: 'laravel-dev-appServer-securityGroup'
+Outputs:
+  HostServerPublicName:
+    Value: !Sub ${HostServer.PublicDnsName}
+    Description: 'Public Name of Host to connect via SSH as user ec2-user.'
