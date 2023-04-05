@@ -13,7 +13,8 @@ Parameters:
   EC2ImageId:
     Description: 'ami'
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2  # Amazon Linux 2 の最新
+#    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64 # amazon linux 2023 の最新
 
 Resources:
   ### VPC
@@ -155,19 +156,19 @@ Resources:
       Tags:
         - Key: Name
           Value: 'laravel-dev-appServer-instance'
-      UserData:
+#      UserData:
         # -x: 実行したコマンドを出力するデバッグモードを有効
         # bash -ex << "TRY" xxxxx TRY: ヒアドキュメントを使用してシェルスクリプトの一部を実行する。xxxxxを実行。
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
-        'Fn::Base64': !Sub |
-          #!/bin/bash -x
-          bash -ex << "TRY"
-            yum -y update
-            yum -y install httpd
-            service httpd start
-          TRY
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
+#        'Fn::Base64': !Sub |
+#          #!/bin/bash -x
+#          bash -ex << "TRY"
+#            yum -y update
+#            yum -y install httpd
+#            service httpd start
+#          TRY
+#          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
   # アプリケーションサーバーのセキュリティーグループ

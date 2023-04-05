@@ -1,6 +1,7 @@
 # はじめに
 
 このリポジトリはlaravelの実験用のリポジトリです
+API
 
 # 初期設定
 
@@ -31,7 +32,7 @@ docker-compose exec app-php php artisan db:seed
 |  composer  |  2.5.4   | docker/php/Dockerfile   |
 
 
-# コマンドメモ
+# Dockerコマンドメモ
 ## コンテナに入る
 
 ```shell
@@ -91,6 +92,17 @@ docker-compose exec app-php php artisan make:model Models/Career
 
 ※モデル名は命名規則があるのでデータベースのテーブル名から 's' を抜いたものにしないといけない
 
+
+# AWS用コマンドメモ
+
+## 踏み台サーバー
+
+```shell
+ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/bastion_id_rsa.pem ec2-user@bastion_server' \
+-i ~/.ssh/target_id_rsa.pem ec2-user@target_server
+```
+
+`-W %h:%p` 中継サーバーを通してターゲットサーバーに接続するためのオプション
 
 # 参考リンク
 
