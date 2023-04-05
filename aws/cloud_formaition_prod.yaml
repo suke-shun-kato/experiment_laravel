@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'For laravel development environment'
+Description: 'For laravel production environment'
 Parameters:
   KeyName:
     Description: 'Key Pair name'
@@ -29,7 +29,7 @@ Resources:
       EnableDnsHostnames: 'true'
       Tags:
         - Key: Name
-          Value: 'laravel-dev-vpc'
+          Value: 'laravel-prod-vpc'
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties: {}
@@ -49,7 +49,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-dev-public-subnet'
+          Value: 'laravel-prod-public-subnet'
   # ルートテーブル
   PublicSubnetRouteTable:
     Type: 'AWS::EC2::RouteTable'
@@ -57,7 +57,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-dev-public-subnet-route-table'
+          Value: 'laravel-prod-public-subnet-route-table'
   # サブネットとルートテーブルの関連付け
   PublicSubnetRouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -72,32 +72,6 @@ Resources:
       DestinationCidrBlock: '0.0.0.0/0'
       GatewayId: !Ref InternetGateway
     DependsOn: VPCGatewayAttachment
-
-  ### プライベートサブネット関連
-  # サブネット
-  PrivateSubnet:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      CidrBlock: '10.0.2.0/24'
-      AvailabilityZone: 'ap-northeast-1a'
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: 'laravel-dev-private-subnet'
-  # ルートテーブル
-  PrivateSubnetRouteTable:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: 'laravel-dev-private-subnet-route-table'
-  # サブネットとルートテーブルの関連付け
-  PrivateSubnetRouteTableAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref PrivateSubnet
-      RouteTableId: !Ref PrivateSubnetRouteTable
 
   ### 踏み台サーバー関連
   # 踏み台サーバー
@@ -116,7 +90,7 @@ Resources:
             - !Ref HostSecurityGroup
       Tags:
         - Key: Name
-          Value: 'laravel-dev-hostServer-instance'
+          Value: 'laravel-prod-hostServer-instance'
     DependsOn: VPCGatewayAttachment
   # 踏み台サーバーのセキュリティーグループ
   HostSecurityGroup:
@@ -132,12 +106,13 @@ Resources:
           CidrIp: '0.0.0.0/0'
         # SSH
         - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Sub '${SSHAccessIp}/32'
+          FromPort: 22  # Port22から
+          ToPort: 22    # 22までの範囲を指定
+#          CidrIp: !Sub '${SSHAccessIp}/32' # TODO 元に戻す
+          CidrIp: '0.0.0.0/0'
       Tags:
         - Key: Name
-          Value: 'laravel-dev-hostServer-securityGroup'
+          Value: 'laravel-prod-hostServer-securityGroup'
 
   ### アプリケーションサーバー関連
   # アプリケーションサーバー
@@ -156,7 +131,7 @@ Resources:
             - !Ref AppSecurityGroup
       Tags:
         - Key: Name
-          Value: 'laravel-dev-appServer-instance'
+          Value: 'laravel-prod-appServer-instance'
       UserData:
         # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
@@ -177,8 +152,8 @@ Resources:
       SecurityGroupIngress:
         # SSH（踏み台ホストのセキュリティーグループのみOK）
         - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
+          FromPort: 22  # Port22〜
+          ToPort: 22    # 22までの範囲を指定
           SourceSecurityGroupId: !Ref HostSecurityGroup
         # HTTP
         - IpProtocol: tcp
@@ -192,7 +167,84 @@ Resources:
           CidrIp: '0.0.0.0/0'
       Tags:
         - Key: Name
-          Value: 'laravel-dev-appServer-securityGroup'
+          Value: 'laravel-prod-appServer-securityGroup'
+
+  ### DB関連
+  Database:
+    Type: 'AWS::RDS::DBInstance'
+    DeletionPolicy: Delete
+    Properties:
+      AllocatedStorage: '5'   # 5Gのストレージ
+      BackupRetentionPeriod: 0  # 自動スナップショットの保存日数
+      DBInstanceClass: 'db.t2.micro'
+      DBName: laravel_exp
+      Engine: MySQL
+      MasterUsername: admin
+      MasterUserPassword: password
+      VPCSecurityGroups:
+        - !Sub ${DatabaseSecurityGroup.GroupId}
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+    DependsOn: VPCGatewayAttachment
+  DatabaseSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Database security group for the Laravel experiment production .'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-database-securityGroup'
+  # サブネット
+  DatabaseSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: 'The Laravel experiment production database subnet group.'
+      SubnetIds:
+        - Ref: DatabasePrivateSubnetA
+        - Ref: DatabasePrivateSubnetB
+  DatabasePrivateSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: '10.0.2.0/24'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-database-private-subnet-A'
+  DatabasePrivateSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      # !Select [index, list]   listの中のindexの要素を取得
+      # !GetAZs ''    アベイラビリティーゾーンのリストを取得。空の文字列を引数として渡していて、殻の場合はリージョン内で使用可能なすべてのアベイラビリティーゾーンのリストになる。
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: '10.0.3.0/24'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-database-private-subnet-B'
+  # ルートテーブル
+  PrivateSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-private-subnet-route-table'
+  # サブネットとルートテーブルの関連付け
+  DatabasePrivateSubnetARouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref DatabasePrivateSubnetA
+      RouteTableId: !Ref PrivateSubnetRouteTable
+  DatabasePrivateSubnetBRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref DatabasePrivateSubnetB
+      RouteTableId: !Ref PrivateSubnetRouteTable
 
 Outputs:
   HostServerPublicName:

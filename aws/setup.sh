@@ -95,7 +95,39 @@ sudo mv composer.phar /usr/local/bin/composer
 
 #### Gitをインストール
 # Gitをインストール
-sudo yum install git
+sudo yum install -y git
 
 # 確認
 #git -v
+
+# .sshへ移動
+#cd ~/.ssh
+#ssh-keygen
+#sudo cat id_rsa.pub # 確認
+#ssh -T git@github.com # 確認
+#cd /var/www
+#git clone git@github.com:[アカウント名]/[リポジトリ名].git .
+
+
+#### MySQLのクライアントをインストール
+# MariaDBが入っているか確認
+#sudo yum list installed | grep mariadb
+# MariaDBアンインストール
+sudo yum remove -y mariadb-libs
+
+# MySQLの公式リポジトリの追加
+sudo yum localinstall -y https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+# 追加の確認
+#sudo yum repolist all | grep mysql
+# mysql8.0 のリポジトリを無効化
+sudo yum-config-manager --disable mysql80-community
+# mysql5.7 リポジトリを有効化
+sudo yum-config-manager --enable mysql57-community
+# GPGキーをインストール 参考：https://blog.katsubemakito.net/mysql/mysql-update-error-gpg
+sudo rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+#  mysql-community-clientをインストールする
+sudo yum install -y mysql-community-client
+# インストールを確認
+#mysql --version
+# DBに接続
+#mysql -h database-2.cluster-cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com -P 3306 -u admin -p
