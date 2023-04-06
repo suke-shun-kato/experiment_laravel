@@ -226,10 +226,16 @@ Resources:
       GroupDescription: 'Database security group for the Laravel experiment production .'
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: 'tcp'
+        # AppサーバーからDB接続
+        - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
           SourceSecurityGroupId: !Ref AppSecurityGroup
+        # 踏み台サーバーからDB接続
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
       Tags:
         - Key: Name
           Value: 'laravel-prod-database-securityGroup'
