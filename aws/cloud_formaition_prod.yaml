@@ -87,13 +87,13 @@ Resources:
           DeviceIndex: '0'      # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
           SubnetId: !Ref PublicSubnet
           GroupSet:
-            - !Ref HostSecurityGroup
+            - !Ref BastionSecurityGroup
       Tags:
         - Key: Name
           Value: 'laravel-prod-bastionServer-instance'
     DependsOn: VPCGatewayAttachment
   # 踏み台サーバーのセキュリティーグループ
-  HostSecurityGroup:
+  BastionSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
       GroupDescription: 'Allowing incoming SSH and ICMP.'
@@ -154,7 +154,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22  # Port22〜
           ToPort: 22    # 22までの範囲を指定
-          SourceSecurityGroupId: !Ref HostSecurityGroup
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
         # HTTP
         - IpProtocol: tcp
           FromPort: 80
@@ -170,21 +170,55 @@ Resources:
           Value: 'laravel-prod-appServer-securityGroup'
 
   ### DB関連
-  Database:
-    Type: 'AWS::RDS::DBInstance'
+  DatabaseCluster:
+    Type: 'AWS::RDS::DBCluster'
     DeletionPolicy: Delete
     Properties:
-      AllocatedStorage: '5'   # 5Gのストレージ
-      BackupRetentionPeriod: 0  # 自動スナップショットの保存日数
-      DBInstanceClass: 'db.t2.micro'
-      DBName: laravel_exp
-      Engine: MySQL
+      Engine: aurora-mysql
+      EngineVersion: '5.7.mysql_aurora.2.11.2'
+      DBClusterIdentifier: 'laravel-prod-databaseCluster' # DB クラスター識別子
       MasterUsername: admin
       MasterUserPassword: password
-      VPCSecurityGroups:
-        - !Sub ${DatabaseSecurityGroup.GroupId}
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      BackupRetentionPeriod: 7  # 自動スナップショットの保存日数
+      PreferredBackupWindow: 19:00-19:30  # スナップショットの時間を日本時間の4:00〜4:30に設定
+      StorageEncrypted: true  # 暗号化を有効に
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName:
+        Ref: DatabaseSubnetGroup
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-databaseCluster'
     DependsOn: VPCGatewayAttachment
+
+  DatabaseInstance1:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier:
+        Ref: DatabaseCluster
+      DBInstanceClass: db.t3.small
+      DBSubnetGroupName:
+        Ref: DatabaseSubnetGroup
+      Engine: aurora-mysql
+      PubliclyAccessible: "false"
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-database-1'
+
+  DatabaseInstance2:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier:
+        Ref: DatabaseCluster
+      DBInstanceClass: db.t3.small
+      DBSubnetGroupName:
+        Ref: DatabaseSubnetGroup
+      Engine: aurora-mysql
+      PubliclyAccessible: "false"
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-database-2'
+
   DatabaseSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -206,6 +240,9 @@ Resources:
       SubnetIds:
         - Ref: DatabasePrivateSubnetA
         - Ref: DatabasePrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: 'laravel-prod-database-private-subnetGroup'
   DatabasePrivateSubnetA:
     Type: 'AWS::EC2::Subnet'
     Properties:
@@ -246,10 +283,93 @@ Resources:
       SubnetId: !Ref DatabasePrivateSubnetB
       RouteTableId: !Ref PrivateSubnetRouteTable
 
+#  ### DB関連（普通のMySQL）
+#  Database:
+#    Type: 'AWS::RDS::DBInstance'
+#    DeletionPolicy: Delete
+#    Properties:
+#      AllocatedStorage: '5'   # 5Gのストレージ
+#      BackupRetentionPeriod: 0  # 自動スナップショットの保存日数
+#      DBInstanceClass: 'db.t2.micro'
+#      DBName: laravel_exp
+#      Engine: MySQL
+#      MasterUsername: admin
+#      MasterUserPassword: password
+#      VPCSecurityGroups:
+#        - !Sub ${DatabaseSecurityGroup.GroupId}
+#      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+#    DependsOn: VPCGatewayAttachment
+#  DatabaseSecurityGroup:
+#    Type: 'AWS::EC2::SecurityGroup'
+#    Properties:
+#      GroupDescription: 'Database security group for the Laravel experiment production .'
+#      VpcId: !Ref VPC
+#      SecurityGroupIngress:
+#        - IpProtocol: 'tcp'
+#          FromPort: 3306
+#          ToPort: 3306
+#          SourceSecurityGroupId: !Ref AppSecurityGroup
+#      Tags:
+#        - Key: Name
+#          Value: 'laravel-prod-database-securityGroup'
+#  # サブネット
+#  DatabaseSubnetGroup:
+#    Type: 'AWS::RDS::DBSubnetGroup'
+#    Properties:
+#      DBSubnetGroupDescription: 'The Laravel experiment production database subnet group.'
+#      SubnetIds:
+#        - Ref: DatabasePrivateSubnetA
+#        - Ref: DatabasePrivateSubnetB
+#  DatabasePrivateSubnetA:
+#    Type: 'AWS::EC2::Subnet'
+#    Properties:
+#      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+#      CidrBlock: '10.0.2.0/24'
+#      VpcId: !Ref VPC
+#      Tags:
+#        - Key: Name
+#          Value: 'laravel-prod-database-private-subnet-A'
+#  DatabasePrivateSubnetB:
+#    Type: 'AWS::EC2::Subnet'
+#    Properties:
+#      # !Select [index, list]   listの中のindexの要素を取得
+#      # !GetAZs ''    アベイラビリティーゾーンのリストを取得。空の文字列を引数として渡していて、殻の場合はリージョン内で使用可能なすべてのアベイラビリティーゾーンのリストになる。
+#      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+#      CidrBlock: '10.0.3.0/24'
+#      VpcId: !Ref VPC
+#      Tags:
+#        - Key: Name
+#          Value: 'laravel-prod-database-private-subnet-B'
+#  # ルートテーブル
+#  PrivateSubnetRouteTable:
+#    Type: 'AWS::EC2::RouteTable'
+#    Properties:
+#      VpcId: !Ref VPC
+#      Tags:
+#        - Key: Name
+#          Value: 'laravel-prod-private-subnet-route-table'
+#  # サブネットとルートテーブルの関連付け
+#  DatabasePrivateSubnetARouteTableAssociation:
+#    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+#    Properties:
+#      SubnetId: !Ref DatabasePrivateSubnetA
+#      RouteTableId: !Ref PrivateSubnetRouteTable
+#  DatabasePrivateSubnetBRouteTableAssociation:
+#    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+#    Properties:
+#      SubnetId: !Ref DatabasePrivateSubnetB
+#      RouteTableId: !Ref PrivateSubnetRouteTable
+
 Outputs:
   BastionServerPublicName:
     Value: !Sub ${BastionServer.PublicDnsName}
-    Description: 'Public Name of Host Server to connect via SSH as user ec2-user.'
+    Description: 'Public Name of Bastion Server to connect via SSH as user ec2-user.'
   AppServerPublicName:
     Value: !Sub ${AppServer.PublicDnsName}
     Description: 'Public Name of App Server to connect via SSH as user ec2-user.'
+  Database1Endpoint:
+    Value: !GetAtt DatabaseInstance1.Endpoint.Address
+    Description: 'Endpoint name of Database 1.'
+  Database2Endpoint:
+    Value: !GetAtt DatabaseInstance2.Endpoint.Address
+    Description: 'Endpoint name of Database 2.'
