@@ -12,7 +12,7 @@ sudo amazon-linux-extras install -y nginx1
 sudo systemctl start nginx
 
 # 起動しているか確認
-#sudo systemctl status nginx
+sudo systemctl status nginx
 
 # インスタンス起動時に自動起動するように設定
 sudo systemctl enable nginx
@@ -27,7 +27,7 @@ sudo systemctl enable nginx
 sudo amazon-linux-extras install -y php8.2
 
 # PHPのバージョンの確認
-#php -v
+php -v
 
 # laravelに必要な拡張パッケージ（php-bcmath、php-mbstring、php-xml）一度にインストール
 sudo yum install -y php-bcmath php-mbstring php-xml
@@ -53,8 +53,8 @@ sudo systemctl restart php-fpm.service
 sudo mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bk
 sudo curl -o /etc/nginx/nginx.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/cloud_formation/aws/nginx.conf
 
-## 設定が正しいかテスト
-#sudo nginx -t
+# 設定が正しいかテスト
+sudo nginx -t
 
 # nginxを再起動
 sudo systemctl restart nginx
@@ -82,6 +82,7 @@ sudo usermod -a -G nginx ec2-user
 
 #### Composer をインストール
 # Composer をインストール
+export HOME="/root" # シェルスクリプトから実行する場合は環境変数HOMEがないとエラーが出るので、rootユーザのHOMEの場所を設定
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 php -r "if (hash_file('sha384', 'composer-setup.php') === '55ce33d7678c5a611085589f1f3ddf8b3c52d662cd01d4ba75c0ee0459970c2200a51f492d557530c71c15d8dba01eae') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
 php composer-setup.php
@@ -91,14 +92,14 @@ php -r "unlink('composer-setup.php');"
 sudo mv composer.phar /usr/local/bin/composer
 
 # インストールを確認
-#composer -v
+composer -v
 
 #### Gitをインストール
 # Gitをインストール
 sudo yum install -y git
 
 # 確認
-#git -v
+git -v
 
 # .sshへ移動
 #cd ~/.ssh
@@ -128,6 +129,6 @@ sudo rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 #  mysql-community-clientをインストールする
 sudo yum install -y mysql-community-client
 # インストールを確認
-#mysql --version
+mysql --version
 # DBに接続
-#mysql -h aaaaa-database-9jwzq12mrem4.cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com -P 3306 -u admin -p
+#mysql -h wwwww-databaseinstance1-0yfydcfafk0n.cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com -P 3306 -u admin -p

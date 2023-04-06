@@ -136,6 +136,7 @@ Resources:
         # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
+        # 実行ログは /var/log/cloud-init-output.log で見られる
         # TODO URLをmasterにマージしたら修正する
         'Fn::Base64': !Sub |
           #!/bin/bash -x
