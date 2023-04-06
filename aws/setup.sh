@@ -130,4 +130,4 @@ sudo yum install -y mysql-community-client
 # インストールを確認
 #mysql --version
 # DBに接続
-#mysql -h database-2.cluster-cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com -P 3306 -u admin -p
+#mysql -h aaaaa-database-9jwzq12mrem4.cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com -P 3306 -u admin -p
