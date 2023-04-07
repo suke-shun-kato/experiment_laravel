@@ -132,6 +132,8 @@ Resources:
       Tags:
         - Key: Name
           Value: 'laravel-prod-appServer-instance'
+        - Key: CodeDeployKey
+          Value: 'laravel-prod-appServer-deploy'
       UserData:
         # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
