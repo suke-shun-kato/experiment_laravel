@@ -44,14 +44,14 @@ sudo systemctl enable php-fpm
 #### nginxとphp-fpmの設定をする
 # php-fpmの設定をする
 sudo mv /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf.bk
-sudo curl -o /etc/php-fpm.d/www.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/cloud_formation/aws/www.conf
+sudo curl -o /etc/php-fpm.d/www.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/www.conf
 
 # php-fpm を再起動
 sudo systemctl restart php-fpm.service
 
 # nginxの設定をする
 sudo mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bk
-sudo curl -o /etc/nginx/nginx.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/cloud_formation/aws/nginx.conf
+sudo curl -o /etc/nginx/nginx.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/nginx.conf
 
 # 設定が正しいかテスト
 sudo nginx -t

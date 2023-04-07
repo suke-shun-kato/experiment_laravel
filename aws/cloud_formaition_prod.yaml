@@ -137,10 +137,9 @@ Resources:
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
         # 実行ログは /var/log/cloud-init-output.log で見られる
-        # TODO URLをmasterにマージしたら修正する
         'Fn::Base64': !Sub |
           #!/bin/bash -x
-          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/cloud_formation/aws/setup.sh | bash -ex
+          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/setup.sh | bash -ex
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
@@ -173,7 +172,7 @@ Resources:
   ### DB関連
   DatabaseCluster:
     Type: 'AWS::RDS::DBCluster'
-    DeletionPolicy: Delete
+    DeletionPolicy: Delete  # TODO 色々実験中なのでひとまずDelete
     Properties:
       Engine: aurora-mysql
       EngineVersion: '5.7.mysql_aurora.2.11.2'
