@@ -1,0 +1,43 @@
+# CodeDeployの設定方法: https://qiita.com/nasuB7373/items/081f5974e31419a1a844
+# ファイルの書き方: https://docs.aws.amazon.com/ja_jp/codedeploy/latest/userguide/reference-appspec-file-structure-permissions.html
+version: 0.0
+os: linux
+files:
+  - source: /src/           # デプロイ対象のPath（GitHub）
+    destination: /var/www/  # デプロイ先のPath（AWS）
+
+# 参考: https://docs.aws.amazon.com/ja_jp/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html#appspec-hooks-server
+hooks:
+  # デプロイ前の ApplicationStop のタイミング
+  ApplicationStop:
+    - location: scripts/application_stop.sh
+      timeout: 300
+      runas: ec2-user
+
+  # デプロイ後の AfterInstall のタイミングで実行するスクリプト
+  AfterInstall:
+    - location: deploy_scripts/after_install.sh
+      timeout: 300
+      runas: ec2-user
+
+  # デプロイ後の ApplicationStart のタイミングで実行するスクリプト
+  ApplicationStart:
+    - location: scripts/application_start.sh
+      timeout: 300
+      runas: ec2-user
+
+
+# デプロイしたファイルのパーミッションの設定
+# パーミッション設定は /var/www ディレクトリ自体のパーミッションが変更できない（/var/www 以下は変更できる）ので、
+#  after_install で変更
+#permissions:
+#  - object: /var/www
+#    pattern: "^/var/www/(?!artisan$).+$"
+#    pattern: "^/var/www/(?!artisan$).+$"
+#    owner: ec2-user
+#    group: nginx
+##    mode: 664
+#    type:
+#      - file
+
+

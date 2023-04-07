@@ -88,7 +88,7 @@ php -r "if (hash_file('sha384', 'composer-setup.php') === '55ce33d7678c5a6110855
 php composer-setup.php
 php -r "unlink('composer-setup.php');"
 
-# 実行ファイルをbinに移動
+# 実行ファイルをbinに移動。Composerはrootユーザーで実行しないようにと公式に記載があるので /bin ではなく /usr/local/bin に移動
 sudo mv composer.phar /usr/local/bin/composer
 
 # インストールを確認
