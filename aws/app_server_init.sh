@@ -132,3 +132,16 @@ sudo yum install -y mysql-community-client
 mysql --version
 # DBに接続
 #mysql -h wwwww-databaseinstance1-0yfydcfafk0n.cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com -P 3306 -u admin -p
+
+
+#### CodeDeployAgentのインストール。参考URL https://qiita.com/nasuB7373/items/081f5974e31419a1a844
+sudo yum install -y ruby
+cd /home/ec2-user
+# 指定URLのファイルを取得。-O: ファイル名はそのままの install。
+# CodeDeployエージェントのダウンロードリンクはリージョンによって異なるので注意（現在は東京リージョンの）
+sudo curl -O https://aws-codedeploy-ap-northeast-1.s3.amazonaws.com/latest/install
+sudo chmod +x install
+# インストール
+sudo ./install auto
+# インストール確認
+sudo service codedeploy-agent status
