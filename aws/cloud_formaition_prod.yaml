@@ -122,6 +122,7 @@ Resources:
       ImageId: !Ref EC2ImageId
       InstanceType: 't2.micro'
       KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref AppInstanceProfile
       NetworkInterfaces:
         - AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
           DeleteOnTermination: true # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
@@ -145,6 +146,32 @@ Resources:
           curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/deploy/aws/app_server_init.sh | bash -ex
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
+
+  # アプリケーションサーバーのロール
+  AppRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'experiment-laravel-deploy-role'
+      AssumeRolePolicyDocument:   # この権限をEC2インスタンスに委譲
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:  # 委譲するAWSアカウントやサービス
+              Service:    # 委譲するAWSサービス
+                - 'codedeploy.amazonaws.com'
+                - 'ec2.amazonaws.com'
+            Action:     # 委譲するAction（AWSのAPI）
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess  # S3にアクセスできるポリシーをロールに追加
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole  # CodeDeployできるポリシーをロールに追加
+
+  AppInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      InstanceProfileName: 'experiment-laravel-deploy-instanceProfile'
+      Roles:
+        - !Ref AppRole
 
   # アプリケーションサーバーのセキュリティーグループ
   AppSecurityGroup:
