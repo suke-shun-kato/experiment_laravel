@@ -10,7 +10,7 @@ files:
 hooks:
   # デプロイ前の ApplicationStop のタイミング
   ApplicationStop:
-    - location: scripts/application_stop.sh
+    - location: deploy_scripts/application_stop.sh
       timeout: 300
       runas: ec2-user
 
@@ -22,7 +22,7 @@ hooks:
 
   # デプロイ後の ApplicationStart のタイミングで実行するスクリプト
   ApplicationStart:
-    - location: scripts/application_start.sh
+    - location: deploy_scripts/application_start.sh
       timeout: 300
       runas: ec2-user
 

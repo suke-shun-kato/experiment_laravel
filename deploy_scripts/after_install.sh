@@ -8,12 +8,7 @@ cd /var/www
 composer install
 
 # envファイルの設定、初回だけ
-if [ ! -f .env ]; then
-  # TODO envファイルを作成する
-  echo "Created .env file"
-
-  # .env のAPP_KEY の値を作成
-  php artisan key:generate
+if [ -f .env ]; then
+  php artisan migrate
 fi
 
-php artisan migrate
