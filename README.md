@@ -34,11 +34,11 @@ docker-compose exec app-php php artisan db:seed
 
 # バージョン
 
-|     名前     |   バージョン  | 記載箇所                    |
-|:----------:|-----|-------------------------|
-|  laravel   | 10.3.3    | src/composer.json       |
-|    php     |  8.1   | docker/php/Dockerfile, src/composer.json |
-|  composer  |  2.5.4   | docker/php/Dockerfile   |
+|     名前     | バージョン  | 記載箇所                                                         |
+|:----------:|--------|--------------------------------------------------------------|
+|  laravel   | 10.3.3 | src/composer.json                                            |
+|    php     | 8.2    | docker/php/Dockerfile, src/composer.json, app_server_init.sh |
+|  composer  | 2.5.4  | docker/php/Dockerfile                                        |
 
 
 # Dockerコマンドメモ
