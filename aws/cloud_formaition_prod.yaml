@@ -29,7 +29,7 @@ Resources:
       EnableDnsHostnames: 'true'
       Tags:
         - Key: Name
-          Value: 'laravel-prod-vpc'
+          Value: !Sub '${AWS::StackName}-vpc'
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties: {}
@@ -49,7 +49,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-prod-public-subnet'
+          Value: !Sub '${AWS::StackName}-public-subnet'
   # ルートテーブル
   PublicSubnetRouteTable:
     Type: 'AWS::EC2::RouteTable'
@@ -57,7 +57,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-prod-public-subnet-route-table'
+          Value: !Sub '${AWS::StackName}-public-subnet-route-table'
   # サブネットとルートテーブルの関連付け
   PublicSubnetRouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -90,7 +90,7 @@ Resources:
             - !Ref BastionSecurityGroup
       Tags:
         - Key: Name
-          Value: 'laravel-prod-bastionServer-instance'
+          Value: !Sub '${AWS::StackName}-bastionServer-instance'
     DependsOn: VPCGatewayAttachment
   # 踏み台サーバーのセキュリティーグループ
   BastionSecurityGroup:
@@ -112,7 +112,7 @@ Resources:
           CidrIp: '0.0.0.0/0'
       Tags:
         - Key: Name
-          Value: 'laravel-prod-bastionServer-securityGroup'
+          Value: !Sub '${AWS::StackName}-bastionServer-securityGroup'
 
   ### アプリケーションサーバー関連
   # アプリケーションサーバー
@@ -122,6 +122,7 @@ Resources:
       ImageId: !Ref EC2ImageId
       InstanceType: 't2.micro'
       KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref AppInstanceProfile
       NetworkInterfaces:
         - AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
           DeleteOnTermination: true # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
@@ -131,17 +132,46 @@ Resources:
             - !Ref AppSecurityGroup
       Tags:
         - Key: Name
-          Value: 'laravel-prod-appServer-instance'
+          Value: !Sub '${AWS::StackName}-appServer-instance'
+        - Key: CodeDeployKey
+          Value: !Sub '${AWS::StackName}-appServer-deploy'
       UserData:
         # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
         # 実行ログは /var/log/cloud-init-output.log で見られる
+        # TODO URLをmasterにマージしたら修正する
         'Fn::Base64': !Sub |
           #!/bin/bash -x
-          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/setup.sh | bash -ex
+          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/deploy/aws/app_server_init.sh | bash -ex
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
+
+  # アプリケーションサーバーのロール
+  AppRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-deploy-role'
+      AssumeRolePolicyDocument:   # この権限をEC2インスタンスに委譲
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:  # 委譲するAWSアカウントやサービス
+              Service:    # 委譲するAWSサービス
+                - 'codedeploy.amazonaws.com'
+                - 'ec2.amazonaws.com'
+            Action:     # 委譲するAction（AWSのAPI）
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess  # S3にアクセスできるポリシーをロールに追加
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole  # CodeDeployできるポリシーをロールに追加
+
+  AppInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      InstanceProfileName: !Sub '${AWS::StackName}-deploy-instanceProfile'
+      Roles:
+        - !Ref AppRole
 
   # アプリケーションサーバーのセキュリティーグループ
   AppSecurityGroup:
@@ -167,7 +197,7 @@ Resources:
           CidrIp: '0.0.0.0/0'
       Tags:
         - Key: Name
-          Value: 'laravel-prod-appServer-securityGroup'
+          Value: !Sub '${AWS::StackName}-appServer-securityGroup'
 
   ### DB関連
   DatabaseCluster:
@@ -176,7 +206,7 @@ Resources:
     Properties:
       Engine: aurora-mysql
       EngineVersion: '5.7.mysql_aurora.2.11.2'
-      DBClusterIdentifier: 'laravel-prod-databaseCluster' # DB クラスター識別子
+      DBClusterIdentifier: !Sub '${AWS::StackName}-databaseCluster' # DB クラスター識別子
       MasterUsername: admin
       MasterUserPassword: password
       BackupRetentionPeriod: 7  # 自動スナップショットの保存日数
@@ -188,7 +218,7 @@ Resources:
         Ref: DatabaseSubnetGroup
       Tags:
         - Key: Name
-          Value: 'laravel-prod-databaseCluster'
+          Value: !Sub '${AWS::StackName}-databaseCluster'
     DependsOn: VPCGatewayAttachment
 
   DatabaseInstance1:
@@ -203,7 +233,7 @@ Resources:
       PubliclyAccessible: "false"
       Tags:
         - Key: Name
-          Value: 'laravel-prod-database-1'
+          Value: !Sub '${AWS::StackName}-database-1'
 
   DatabaseInstance2:
     Type: "AWS::RDS::DBInstance"
@@ -217,7 +247,7 @@ Resources:
       PubliclyAccessible: "false"
       Tags:
         - Key: Name
-          Value: 'laravel-prod-database-2'
+          Value: !Sub '${AWS::StackName}-database-2'
 
   DatabaseSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -237,7 +267,7 @@ Resources:
           SourceSecurityGroupId: !Ref BastionSecurityGroup
       Tags:
         - Key: Name
-          Value: 'laravel-prod-database-securityGroup'
+          Value: !Sub '${AWS::StackName}-database-securityGroup'
   # サブネット
   DatabaseSubnetGroup:
     Type: 'AWS::RDS::DBSubnetGroup'
@@ -248,7 +278,7 @@ Resources:
         - Ref: DatabasePrivateSubnetB
       Tags:
         - Key: Name
-          Value: 'laravel-prod-database-private-subnetGroup'
+          Value: !Sub '${AWS::StackName}-database-private-subnetGroup'
   DatabasePrivateSubnetA:
     Type: 'AWS::EC2::Subnet'
     Properties:
@@ -257,7 +287,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-prod-database-private-subnet-A'
+          Value: !Sub '${AWS::StackName}-database-private-subnet-A'
   DatabasePrivateSubnetB:
     Type: 'AWS::EC2::Subnet'
     Properties:
@@ -268,7 +298,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-prod-database-private-subnet-B'
+          Value: !Sub '${AWS::StackName}-database-private-subnet-B'
   # ルートテーブル
   PrivateSubnetRouteTable:
     Type: 'AWS::EC2::RouteTable'
@@ -276,7 +306,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: 'laravel-prod-private-subnet-route-table'
+          Value: !Sub '${AWS::StackName}-private-subnet-route-table'
   # サブネットとルートテーブルの関連付け
   DatabasePrivateSubnetARouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -317,7 +347,7 @@ Resources:
 #          SourceSecurityGroupId: !Ref AppSecurityGroup
 #      Tags:
 #        - Key: Name
-#          Value: 'laravel-prod-database-securityGroup'
+#          Value: !Sub '${AWS::StackName}-database-securityGroup'
 #  # サブネット
 #  DatabaseSubnetGroup:
 #    Type: 'AWS::RDS::DBSubnetGroup'
@@ -334,7 +364,7 @@ Resources:
 #      VpcId: !Ref VPC
 #      Tags:
 #        - Key: Name
-#          Value: 'laravel-prod-database-private-subnet-A'
+#          Value: !Sub '${AWS::StackName}-database-private-subnet-A'
 #  DatabasePrivateSubnetB:
 #    Type: 'AWS::EC2::Subnet'
 #    Properties:
@@ -345,7 +375,7 @@ Resources:
 #      VpcId: !Ref VPC
 #      Tags:
 #        - Key: Name
-#          Value: 'laravel-prod-database-private-subnet-B'
+#          Value: !Sub '${AWS::StackName}-database-private-subnet-B'
 #  # ルートテーブル
 #  PrivateSubnetRouteTable:
 #    Type: 'AWS::EC2::RouteTable'
@@ -353,7 +383,7 @@ Resources:
 #      VpcId: !Ref VPC
 #      Tags:
 #        - Key: Name
-#          Value: 'laravel-prod-private-subnet-route-table'
+#          Value: !Sub '${AWS::StackName}-private-subnet-route-table'
 #  # サブネットとルートテーブルの関連付け
 #  DatabasePrivateSubnetARouteTableAssociation:
 #    Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -366,6 +396,44 @@ Resources:
 #      SubnetId: !Ref DatabasePrivateSubnetB
 #      RouteTableId: !Ref PrivateSubnetRouteTable
 
+  # Code Deploy
+  CodeDeploy:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub '${AWS::StackName}-codeDeploy'
+      # デプロイ対象がEC2（他にECSやLambdaを指定できる）
+      ComputePlatform: Server
+  DeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName:
+        Ref: CodeDeploy
+      # タグで、key:CodeDeployKey、Value:${AWS::StackName}-prod-appServer-deploy を設定しているec2をデプロイ対象にする
+      Ec2TagFilters:
+        - Key: CodeDeployKey
+          Value: !Sub '${AWS::StackName}-appServer-deploy'
+          Type: KEY_AND_VALUE
+      DeploymentGroupName: !Sub '${AWS::StackName}-deploymentGroup'
+      # Deploymentについては今回記述しない
+#      Deployment:
+#        # hooks の ApplicationStop イベントの実行が失敗したとき無視して次のイベントを続けるか
+#        IgnoreApplicationStopFailures: false
+#        Revision:
+#          RevisionType: GitHub
+#          GitHubLocation:
+#            CommitId:
+#              Ref:
+#            Repository:
+#              Ref: experiment_laravel
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      ServiceRoleArn:
+        Fn::GetAtt: [ AppRole, Arn ]  # AppRole の Arn属性の値を取得する
+      # デプロイに失敗したときにロールバックする
+      AutoRollbackConfiguration:
+        Enabled: 'true'
+        Events:
+          - DEPLOYMENT_FAILURE
+
 Outputs:
   BastionServerPublicName:
     Value: !Sub ${BastionServer.PublicDnsName}
@@ -373,6 +441,9 @@ Outputs:
   AppServerPublicName:
     Value: !Sub ${AppServer.PublicDnsName}
     Description: 'Public Name of App Server to connect via SSH as user ec2-user.'
+  SshCommand:
+    Value: !Sub "ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${BastionServer.PublicDnsName}' -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${AppServer.PublicDnsName}"
+    Description: 'A ssh login command from terminal'
   Database1Endpoint:
     Value: !GetAtt DatabaseInstance1.Endpoint.Address
     Description: 'Endpoint name of Database 1.'

@@ -3,7 +3,7 @@
 このリポジトリはlaravelの実験用のリポジトリです
 API
 
-# 初期設定
+# 初期設定（ローカル）
 
 ```shell
 # ソースDL
@@ -15,13 +15,22 @@ docker-compose up -d --build
 
 # laravelなどをインストール
 docker-compose exec app-php composer install
-docker-compose exec app-php cp .env.example .env
+docker-compose exec app-php cp .env.local.example .env
+docker-compose exec app-php php artisan key:generate
 
 # laravelでマイグレーション実行
 docker-compose exec app-php php artisan migrate
 # laravelでシーダー実行
 docker-compose exec app-php php artisan db:seed
 ```
+
+# 初期設定（本番）
+
+1. AWSのCloudFormationで `cloud_formaition_prod.yaml` ファイルを実行してサーバーを作成する
+1. AWSのCodeDeployを実行してソースコードをデプロイする
+1. `cp .env.prod.example .env` を実行した後、手動で `.env` ファイルを編集する
+1. `php artisan key:generate` を実行する
+2. `php artisan migrate` を実行する
 
 # バージョン
 
