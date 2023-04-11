@@ -140,10 +140,9 @@ Resources:
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
         # 実行ログは /var/log/cloud-init-output.log で見られる
-        # TODO URLをmasterにマージしたら修正する
         'Fn::Base64': !Sub |
           #!/bin/bash -x
-          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/deploy/aws/app_server_init.sh | bash -ex
+          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app_server_init.sh | bash -ex
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
