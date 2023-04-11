@@ -1,5 +1,6 @@
 # CodeDeployの設定方法: https://qiita.com/nasuB7373/items/081f5974e31419a1a844
 # ファイルの書き方: https://docs.aws.amazon.com/ja_jp/codedeploy/latest/userguide/reference-appspec-file-structure-permissions.html
+# デプロイログのファイルの場所: /var/log/aws/codedeploy-agent/codedeploy-agent.log
 version: 0.0
 os: linux
 files:
