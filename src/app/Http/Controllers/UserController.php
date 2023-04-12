@@ -90,7 +90,7 @@ class UserController extends Controller
     /**
      * ログイン中のユーザー情報を取得する
      */
-    public function me(Request $request)
+    public function getUser(Request $request)
     {
         return $request->user();
     }

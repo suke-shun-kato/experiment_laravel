@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Http\Request;
 
 /**
  * @method static where(string $name, mixed $value)
@@ -26,31 +25,40 @@ class URecipe extends Model
      */
     protected $table = 'u_recipes';
 
-    // TODO guardを設定する
+    /**
+     * $this->fill([....]) で値をセットするときにセットできないようにするカラム名
+     * @var string[]
+     */
+    protected $guarded = ['id', 'user_id', 'deleted_at', 'created_at', 'updated_at'];
 
     /**
-     * 指定のuser_idのレシピリストを取得する
+     * 指定のuser_idのRecipeリストを取得する
      */
     public static function getList(int $userId): Collection {
         return self::where('user_id', $userId)->get();
     }
 
     /**
-     *
-     * @param Request $request
-     * @param bool $setsUserId ユーザーIOをセットするか
+     * idとuserIdを指定してRecipeを取得する
+     */
+    public static function findByIdAndUserId(int $id, int $userId): ?URecipe {
+        return self::where('id', $id)
+            ->where('user_id', $userId)
+            ->first();
+    }
+
+    /**
+     * $setParams
+     * @param array $setParams
+     * @param int|null $userId セットするユーザーID。セットしない場合はnull。
      * @return void
      */
-    public function setRequestParamIfExists(Request $request, bool $setsUserId): void {
-        if ($setsUserId) {
-            $this->user_id = $request->user()->id;
+    public function fillParams(array $setParams, ?int $userId): void {
+        if (!is_null($userId)) {
+            $this->user_id = $userId;
         }
 
-        if (!is_null($request->title)) {
-            $this->title = $request->title;
-        }
-        if (!is_null($request->description)) {
-            $this->description = $request->description;
-        }
+        // $setParams の値を全てRecipeにセットする
+        $this->fill($setParams);
     }
 }

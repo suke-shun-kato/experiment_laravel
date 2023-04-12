@@ -30,8 +30,7 @@ class RecipeController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        /** @var URecipe $recipe */
-        $recipe = URecipe::find($id);
+        $recipe = URecipe::findByIdAndUserId($id, Auth::id());
 
         // エラー処理
         if (is_null($recipe)) {
@@ -68,8 +67,8 @@ class RecipeController extends Controller
 
         // 値をセットして保存
         $recipe = new URecipe;
-        DB::transaction(function () use ($request, $recipe) {
-            $recipe->setRequestParamIfExists($request, true);
+        DB::transaction(function () use ($recipe, $validator) {
+            $recipe->fillParams($validator->validated(), Auth::id());
             $recipe->save();
         });
 
@@ -80,11 +79,11 @@ class RecipeController extends Controller
 
     /**
      * レシピを更新
-     * @param int $id レシピID
      * @param Request $request
+     * @param int $id レシピID
      * @return JsonResponse
      */
-    public function update(int $id, Request $request): JsonResponse
+    public function update(Request $request, int $id): JsonResponse
     {
 
         // バリデータを作成
@@ -102,16 +101,15 @@ class RecipeController extends Controller
 
         }
 
-        /** @var URecipe $recipe */
-        $recipe = URecipe::find($id);
+        $recipe = URecipe::findByIdAndUserId($id, Auth::id());
         if (is_null($recipe)) {
             return response()->json(
                 ['messages' => 'Target recipe is not found.'],
                 self::STATUS_CODE_NOT_FOUND);
         }
 
-        DB::transaction(function () use ($request, $recipe) {
-            $recipe->setRequestParamIfExists($request, false);
+        DB::transaction(function () use ($validator, $recipe) {
+            $recipe->fillParams($validator->validated(), null);
             $recipe->save();
         });
 
@@ -120,13 +118,13 @@ class RecipeController extends Controller
 
 
     /**
+     * 指定idのRecipeを削除
      * @param int $id
      * @return JsonResponse
      */
     public function destroy(int $id): JsonResponse
     {
-        /** @var URecipe $recipe */
-        $recipe = URecipe::find($id);
+        $recipe = URecipe::findByIdAndUserId($id, Auth::id());
         if (is_null($recipe)) {
             return response()->json(
                 ['messages' => 'Target recipe is not found.'],
@@ -141,9 +139,5 @@ class RecipeController extends Controller
         return response()->json(
             [],
             self::STATUS_CODE_NOT_CONTENT);
-    }
-
-    private function validatea() {
-
     }
 }

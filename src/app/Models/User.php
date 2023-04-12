@@ -18,7 +18,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * DBに代入可能な属性
+     * $this->fill()でカラムにセット可能な属性
      *
      * @var array<int, string>
      */
