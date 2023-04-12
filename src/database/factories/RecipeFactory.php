@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
-use App\Models\Recipe;
+use App\Models\URecipe;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Recipe>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\URecipe>
  */
 class RecipeFactory extends Factory
 {
@@ -15,7 +15,7 @@ class RecipeFactory extends Factory
      *
      * @var string
      */
-    protected $model = Recipe::class;
+    protected $model = URecipe::class;
 
     /**
      * Define the model's default state.

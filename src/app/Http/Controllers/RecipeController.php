@@ -2,18 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Recipe;
+use App\Models\URecipe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class RecipeController extends Controller
 {
-    const STATUS_CODE_CREATED = 201;
-    const STATUS_CODE_NOT_CONTENT = 204;
-    const STATUS_CODE_NOT_FOUND = 404;
-    const STATUS_CODE_BAD_REQUEST = 400;
+
 
     /**
      * レシピ一覧を取得
@@ -21,7 +19,7 @@ class RecipeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $recipes = Recipe::all();
+        $recipes = URecipe::getList(Auth::id());
         return response()->json(['recipes' => $recipes->toArray()]);
     }
 
@@ -32,8 +30,7 @@ class RecipeController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        /** @var Recipe $recipe */
-        $recipe = Recipe::find($id);
+        $recipe = URecipe::findByIdAndUserId($id, Auth::id());
 
         // エラー処理
         if (is_null($recipe)) {
@@ -47,15 +44,16 @@ class RecipeController extends Controller
 
 
     /**
+     * レシピを新規登録
      * @param Request $request
      * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
         // バリデータを作成
-        $validator = Validator::make($request->all(), [
-            "title" => ["required"],
-            "description" => ["required"],
+        $validator = Validator::make($request->input(), [
+            'title' => ['required', 'string'],
+            'description' => ['required', 'string'],
         ]);
 
         // 必須パラメータがない場合はエラー専用のメッセージを返す
@@ -68,9 +66,9 @@ class RecipeController extends Controller
         }
 
         // 値をセットして保存
-        $recipe = new Recipe;
-        DB::transaction(function () use ($request, $recipe) {
-            $recipe->setRequestParamIfExists($request);
+        $recipe = new URecipe;
+        DB::transaction(function () use ($recipe, $validator) {
+            $recipe->fillParams($validator->validated(), Auth::id());
             $recipe->save();
         });
 
@@ -81,22 +79,37 @@ class RecipeController extends Controller
 
     /**
      * レシピを更新
-     * @param int $id レシピID
      * @param Request $request
+     * @param int $id レシピID
      * @return JsonResponse
      */
-    public function update(int $id, Request $request): JsonResponse
+    public function update(Request $request, int $id): JsonResponse
     {
-        /** @var Recipe $recipe */
-        $recipe = Recipe::find($id);
+
+        // バリデータを作成
+        $validator = Validator::make($request->input(), [
+            'title' => ['string'],
+            'description' => ['string'],
+        ]);
+
+        // 必須パラメータがない場合はエラー専用のメッセージを返す
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => "Recipe couldn't update",
+                'required' => ''
+            ], self::STATUS_CODE_BAD_REQUEST);
+
+        }
+
+        $recipe = URecipe::findByIdAndUserId($id, Auth::id());
         if (is_null($recipe)) {
             return response()->json(
                 ['messages' => 'Target recipe is not found.'],
                 self::STATUS_CODE_NOT_FOUND);
         }
 
-        DB::transaction(function () use ($request, $recipe) {
-            $recipe->setRequestParamIfExists($request);
+        DB::transaction(function () use ($validator, $recipe) {
+            $recipe->fillParams($validator->validated(), null);
             $recipe->save();
         });
 
@@ -105,13 +118,13 @@ class RecipeController extends Controller
 
 
     /**
+     * 指定idのRecipeを削除
      * @param int $id
      * @return JsonResponse
      */
     public function destroy(int $id): JsonResponse
     {
-        /** @var Recipe $recipe */
-        $recipe = Recipe::find($id);
+        $recipe = URecipe::findByIdAndUserId($id, Auth::id());
         if (is_null($recipe)) {
             return response()->json(
                 ['messages' => 'Target recipe is not found.'],

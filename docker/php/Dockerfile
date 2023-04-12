@@ -1,6 +1,6 @@
 # 参考 https://qiita.com/ucan-lab/items/56c9dc3cf2e6762672f4
 # phpのimageを取得
-FROM php:8.1-fpm-alpine
+FROM php:8.2-fpm-alpine
 
 # Dockerfileの作成者を設定
 LABEL maintainer="KatoShunsuke<suke.shun.kato2@gmail.com>"
