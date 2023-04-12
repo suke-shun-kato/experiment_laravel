@@ -50,9 +50,9 @@ class RecipeController extends Controller
     public function store(Request $request): JsonResponse
     {
         // バリデータを作成
-        $validator = Validator::make($request->all(), [
-            "title" => ["required"],
-            "description" => ["required"],
+        $validator = Validator::make($request->input(), [
+            'title' => ['required', 'string'],
+            'description' => ['required', 'string'],
         ]);
 
         // 必須パラメータがない場合はエラー専用のメッセージを返す
@@ -84,6 +84,22 @@ class RecipeController extends Controller
      */
     public function update(int $id, Request $request): JsonResponse
     {
+
+        // バリデータを作成
+        $validator = Validator::make($request->input(), [
+            'title' => ['string'],
+            'description' => ['string'],
+        ]);
+
+        // 必須パラメータがない場合はエラー専用のメッセージを返す
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => "Recipe couldn't update",
+                'required' => ''
+            ], self::STATUS_CODE_BAD_REQUEST);
+
+        }
+
         /** @var Recipe $recipe */
         $recipe = Recipe::find($id);
         if (is_null($recipe)) {
@@ -123,5 +139,9 @@ class RecipeController extends Controller
         return response()->json(
             [],
             self::STATUS_CODE_NOT_CONTENT);
+    }
+
+    private function validatea() {
+
     }
 }
