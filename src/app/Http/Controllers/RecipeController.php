@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\URecipe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -18,7 +19,7 @@ class RecipeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $recipes = URecipe::all();
+        $recipes = URecipe::getList(Auth::id());
         return response()->json(['recipes' => $recipes->toArray()]);
     }
 
