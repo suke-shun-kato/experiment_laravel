@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Recipe;
+use App\Models\URecipe;
 use Illuminate\Database\Seeder;
 
 class RecipeSeeder extends Seeder
@@ -13,6 +13,6 @@ class RecipeSeeder extends Seeder
     public function run(): void
     {
         // RecipeFactory を使って10レコードデータを作成する
-        Recipe::factory(10)->create();
+        URecipe::factory(10)->create();
     }
 }

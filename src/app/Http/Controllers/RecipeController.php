@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Recipe;
+use App\Models\URecipe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +18,7 @@ class RecipeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $recipes = Recipe::all();
+        $recipes = URecipe::all();
         return response()->json(['recipes' => $recipes->toArray()]);
     }
 
@@ -29,8 +29,8 @@ class RecipeController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        /** @var Recipe $recipe */
-        $recipe = Recipe::find($id);
+        /** @var URecipe $recipe */
+        $recipe = URecipe::find($id);
 
         // エラー処理
         if (is_null($recipe)) {
@@ -66,7 +66,7 @@ class RecipeController extends Controller
         }
 
         // 値をセットして保存
-        $recipe = new Recipe;
+        $recipe = new URecipe;
         DB::transaction(function () use ($request, $recipe) {
             $recipe->setRequestParamIfExists($request, true);
             $recipe->save();
@@ -101,8 +101,8 @@ class RecipeController extends Controller
 
         }
 
-        /** @var Recipe $recipe */
-        $recipe = Recipe::find($id);
+        /** @var URecipe $recipe */
+        $recipe = URecipe::find($id);
         if (is_null($recipe)) {
             return response()->json(
                 ['messages' => 'Target recipe is not found.'],
@@ -124,8 +124,8 @@ class RecipeController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        /** @var Recipe $recipe */
-        $recipe = Recipe::find($id);
+        /** @var URecipe $recipe */
+        $recipe = URecipe::find($id);
         if (is_null($recipe)) {
             return response()->json(
                 ['messages' => 'Target recipe is not found.'],

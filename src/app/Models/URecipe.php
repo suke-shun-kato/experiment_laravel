@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 
-class Recipe extends Model
+class URecipe extends Model
 {
     use HasFactory;
     use SoftDeletes;
@@ -17,7 +17,7 @@ class Recipe extends Model
      * モデルに関連付けるテーブル
      * @var string
      */
-    protected $table = 'recipes';
+    protected $table = 'u_recipes';
 
     public function setRequestParamIfExists(Request $request, bool $setsUserId): void {
         if ($setsUserId) {

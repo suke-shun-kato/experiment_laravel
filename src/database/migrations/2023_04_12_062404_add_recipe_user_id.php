@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const TABLE_NAME = 'recipes';
+    private const TABLE_NAME_OLD = 'recipes';
+    private const TABLE_NAME_NEW = 'u_recipes';
     private const COLUMN_NAME = 'user_id';
 
     /**
@@ -14,9 +15,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table(self::TABLE_NAME, function (Blueprint $table) {
+        Schema::table(self::TABLE_NAME_OLD, function (Blueprint $table) {
             $table->unsignedBigInteger(self::COLUMN_NAME)->after('id')->index();
         });
+
+        Schema::rename(self::TABLE_NAME_OLD, self::TABLE_NAME_NEW);
     }
 
     /**
@@ -24,7 +27,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table(self::TABLE_NAME, function (Blueprint $table) {
+        Schema::rename(self::TABLE_NAME_NEW, self::TABLE_NAME_OLD);
+
+        Schema::table(self::TABLE_NAME_OLD, function (Blueprint $table) {
             $table->dropColumn(self::COLUMN_NAME);
         });
     }
