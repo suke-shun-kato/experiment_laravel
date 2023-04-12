@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="laravel_exp_db@localhost" uuid="1cfd21ed-a064-4a20-bba8-72c3f3b00ab5">
+    <data-source source="LOCAL" name="local" uuid="1cfd21ed-a064-4a20-bba8-72c3f3b00ab5">
       <driver-ref>mysql.8</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
       <jdbc-url>jdbc:mysql://localhost:13306/laravel_exp_db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="AWS本番" uuid="f5dcc4cc-a017-4e37-9e72-136a98a1bc0b">
+    <data-source source="LOCAL" name="prod" uuid="f5dcc4cc-a017-4e37-9e72-136a98a1bc0b">
       <driver-ref>mysql_aurora</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.mariadb.jdbc.Driver</jdbc-driver>
-      <jdbc-url>jdbc:mariadb://laravel-exp-databaseinstance2-xzebgkb7jljw.cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com:3306/laravel</jdbc-url>
+      <jdbc-url>jdbc:mariadb://experiment-laravel-databaseinstance2-ke8qcj98udbb.cy6bnrwkczia.ap-northeast-1.rds.amazonaws.com:3306/laravel</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>
