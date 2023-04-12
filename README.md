@@ -1,14 +1,14 @@
 # はじめに
 
-このリポジトリはlaravelの実験用のリポジトリです
+- このリポジトリはlaravelの実験用のリポジトリ
+- ベタですが「レシピ作成」のRestAPIを作成しています
 
-API
+# 技術概要
 
-# 概要
-
-- CloudFormation でAWSでリソースを作成
-- Dockerでローカル環境をセット
-- API形式
+- laravelを使用
+- Dockerでローカル環境を構築
+- CloudFormation でAWSでリソースを定義
+- CodeDeployはCloudFormationで定義しているが、CodePipelineはまだ定義していない
 
 # 作成中のAPI
 
@@ -18,7 +18,7 @@ API
 
 ## リクエストヘッダー
 
-下記のヘッダーでリクエストを行うこと
+下記ヘッダーをリクエストに含めること
 
 - `Accept:application/json`
 - `Content-Type:application/json`
@@ -26,14 +26,14 @@ API
 - `X-Requested-With:XMLHttpRequest`
 
 
-## ログイン関連
+## ログイン関連API
 | メソッド |     URL      | Request Body                | 説明              | 
 |------|:------------:|-----------------------------|-----------------|
 | GET  |  /users/me   | -                           | 現在ログイン中のユーザーを取得 |
 | POST |    /users    | `name`, `email`, `password` | 新規ユーザーを作成       |
 | POST | /users/login | `email`, `password`         | ログイン処理を実行       |
 
-## レシピ関連
+## レシピ関連API
 
 | メソッド   |         URL          | Request Body           | 説明                |
 |--------|:--------------------:|------------------------|-------------------|
