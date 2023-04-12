@@ -10,10 +10,7 @@ use Illuminate\Support\Facades\Validator;
 
 class RecipeController extends Controller
 {
-    const STATUS_CODE_CREATED = 201;
-    const STATUS_CODE_NOT_CONTENT = 204;
-    const STATUS_CODE_NOT_FOUND = 404;
-    const STATUS_CODE_BAD_REQUEST = 400;
+
 
     /**
      * レシピ一覧を取得
