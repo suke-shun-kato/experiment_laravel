@@ -19,7 +19,11 @@ class Recipe extends Model
      */
     protected $table = 'recipes';
 
-    public function setRequestParamIfExists(Request $request): void {
+    public function setRequestParamIfExists(Request $request, bool $setsUserId): void {
+        if ($setsUserId) {
+            $this->user_id = $request->user()->id;
+        }
+
         if (!is_null($request->title)) {
             $this->title = $request->title;
         }

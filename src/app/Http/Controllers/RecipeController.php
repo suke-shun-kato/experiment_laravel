@@ -44,6 +44,7 @@ class RecipeController extends Controller
 
 
     /**
+     * レシピを新規登録
      * @param Request $request
      * @return JsonResponse
      */
@@ -67,7 +68,7 @@ class RecipeController extends Controller
         // 値をセットして保存
         $recipe = new Recipe;
         DB::transaction(function () use ($request, $recipe) {
-            $recipe->setRequestParamIfExists($request);
+            $recipe->setRequestParamIfExists($request, true);
             $recipe->save();
         });
 
@@ -109,7 +110,7 @@ class RecipeController extends Controller
         }
 
         DB::transaction(function () use ($request, $recipe) {
-            $recipe->setRequestParamIfExists($request);
+            $recipe->setRequestParamIfExists($request, false);
             $recipe->save();
         });
 
