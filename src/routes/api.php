@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::get('/health_check', function () {
+    return 'laravel is alive.';
+});
+
 Route::post('/users', [UserController::class, 'register']);
 Route::post('/users/login', [UserController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
