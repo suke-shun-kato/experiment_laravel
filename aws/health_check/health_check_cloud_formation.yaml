@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda function for health check.
+Parameters:
+  CheckUrl:
+    Description: 'Key Pair name'
+    Type: String
+    Default: 'http://ec2-13-115-71-58.ap-northeast-1.compute.amazonaws.com/api/health_check'
+Resources:
+  # Lambda関数の定義
+  HealthCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-function'
+      Handler: index.lambda_handler # index.py にある lambda_handler() 関数を実行
+      Runtime: python3.7
+      InlineCode: |
+        import os
+        from datetime import datetime
+        from urllib.request import Request, urlopen
+        
+        SITE = os.environ['site']  # URL of the site to check, stored in the site environment variable
+        EXPECTED = os.environ['expected']  # String expected to be on the page, stored in the expected environment variable
+        
+        
+        def validate(res):
+            '''Return False to trigger the canary
+        
+            Currently this simply checks whether the EXPECTED string is present.
+            However, you could modify this to perform any number of arbitrary
+            checks on the contents of SITE.
+            '''
+            return EXPECTED in res
+        
+        
+        def lambda_handler(event, context):
+            print('Checking {} at {}...'.format(SITE, event['time']))
+            try:
+                req = Request(SITE, headers={'User-Agent': 'AWS Lambda'})
+                if not validate(str(urlopen(req).read())):
+                    raise Exception('Validation failed')
+            except:
+                print('Check failed!')
+                raise
+            else:
+                print('Check passed!')
+                return event['time']
+            finally:
+                print('Check complete at {}'.format(str(datetime.now())))
+
+      Timeout: 10
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'logs:CreateLogGroup'
+              Resource: '*' # TODO ちゃんとする
+            - Effect: Allow
+              Action:
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Resource: '*' # TODO ちゃんとする
+      Events:
+        HealthCheckEvent:
+          Type: Schedule
+          Properties:
+            Schedule: 'rate(1 minute)'
+            Enabled: true
+      Environment:
+        Variables:
+          site: !Ref CheckUrl
+          expected: "laravel is alive."
+
+  # アラーム
+  HealthCheckAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-alarm'
+      AlarmDescription: 'The alarm for health check.'
+      # 名前空間
+      Namespace: AWS/Lambda
+      # メトリクス名
+      MetricName: Errors
+      # LambdaのFunctionName
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${AWS::StackName}-function'
+
+      # 60秒間の値（複数）の合計値が > 0 のときアラーム状態にする
+      Statistic: Sum  # 統計
+      Period: 60  # 期間[s]
+      ComparisonOperator: GreaterThanThreshold # >, >=, <=, < のどれか
+      Threshold: 0  # 閾値
+
+      # アラームを実行するデータポイントが 1/1（M / N、EvaluationPeriods/DatapointsToAlarm）
+      # 参考 https://makky12.hatenablog.com/entry/2022/12/19/120500
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+
+      # 欠落データの処理: 欠落データを見つかりませんとして処理
+      TreatMissingData: missing
+
+      # アラーム状態になったときのAction
+      AlarmActions:
+        - !Ref SNSTopicForHealthCheck
+
+  SNSTopicForHealthCheck:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-sns-topic'
+      Subscription:
+        - Endpoint: suke.shun.kato2@gmail.com
+          Protocol: email
