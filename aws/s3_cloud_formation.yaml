@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'For laravel production environment'
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    # Stackを削除したときの動作: 削除する
+    DeletionPolicy: Delete  # TODO 今は色々試しているのでdelete
+    Properties:
+      # ACL無効
+      AccessControl: Private
+      BucketName: !Sub '${AWS::StackName}-s3-bucket'
+      # デフォルトの暗号化
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:  # Amazon S3 マネージドキー (SSE-S3)
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true  # 有効
+
+
+  # バケットポリシー
+  BucketBackupPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - 's3:GetObject'
+            Resource:
+              - !Sub "arn:aws:s3:::${AWS::StackName}-s3-bucket/*"
