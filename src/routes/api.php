@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ImageController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RecipeController;
 use Illuminate\Support\Facades\Route;
@@ -29,5 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/recipes', [RecipeController::class, 'store']);
     Route::patch('/recipes/{id}', [RecipeController::class, 'update']);
     Route::delete('/recipes/{id}', [RecipeController::class, 'destroy']);
+
+    Route::post('/image/upload', [ImageController::class, 'store']);
 });
 

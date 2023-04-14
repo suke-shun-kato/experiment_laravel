@@ -5,19 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @method static where(string $name, mixed $value)
+ * @property int $id
  * @property int $user_id
  * @property string $title
  * @property string $description
+ * @property Collection $images
  */
 class URecipe extends Model
 {
     use HasFactory;
     use SoftDeletes;
-    use HasFactory;
 
     /**
      * モデルに関連付けるテーブル
@@ -30,6 +32,11 @@ class URecipe extends Model
      * @var string[]
      */
     protected $guarded = ['id', 'user_id', 'deleted_at', 'created_at', 'updated_at'];
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(URecipeImage::class);
+    }
 
     /**
      * 指定のuser_idのRecipeリストを取得する

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\URecipe;
+use App\Models\URecipeImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -54,6 +55,8 @@ class RecipeController extends Controller
         $validator = Validator::make($request->input(), [
             'title' => ['required', 'string'],
             'description' => ['required', 'string'],
+            'image_ids' => ['array'],
+            'image_ids.*' => ['int'],
         ]);
 
         // 必須パラメータがない場合はエラー専用のメッセージを返す
@@ -68,8 +71,12 @@ class RecipeController extends Controller
         // 値をセットして保存
         $recipe = new URecipe;
         DB::transaction(function () use ($recipe, $validator) {
-            $recipe->fillParams($validator->validated(), Auth::id());
+            $param = $validator->validated();
+
+            $recipe->fillParams($param, Auth::id());
             $recipe->save();
+
+            $recipe->images = URecipeImage::create($param['image_ids'], $recipe->id, Auth::id());
         });
 
         return response()->json(
