@@ -31,6 +31,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/recipes/{id}', [RecipeController::class, 'update']);
     Route::delete('/recipes/{id}', [RecipeController::class, 'destroy']);
 
-    Route::post('/image/upload', [ImageController::class, 'store']);
+    Route::post('/images', [ImageController::class, 'store']);
 });
 

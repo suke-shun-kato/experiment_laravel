@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @method static where(string $name, mixed $value)
+ * @method static with(string $name)
  * @property int $id
  * @property int $user_id
  * @property string $title
@@ -35,7 +36,7 @@ class URecipe extends Model
 
     public function images(): HasMany
     {
-        return $this->hasMany(URecipeImage::class);
+        return $this->hasMany(URecipeImage::class, 'recipe_id');
     }
 
     /**
@@ -49,7 +50,8 @@ class URecipe extends Model
      * idとuserIdを指定してRecipeを取得する
      */
     public static function findByIdAndUserId(int $id, int $userId): ?URecipe {
-        return self::where('id', $id)
+        return self::with('images')
+            ->where('id', $id)
             ->where('user_id', $userId)
             ->first();
     }
