@@ -195,6 +195,10 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        /*
+         * カスタムプロバイダー
+         */
+        App\Providers\DatabaseQueryServiceProvider::class
     ],
 
     /*
