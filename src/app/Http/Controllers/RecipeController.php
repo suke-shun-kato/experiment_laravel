@@ -140,6 +140,7 @@ class RecipeController extends Controller
 
         // recipesテーブルから削除
         DB::transaction(function () use ($recipe) {
+            $recipe->images()->delete();
             $recipe->delete();
         });
 
