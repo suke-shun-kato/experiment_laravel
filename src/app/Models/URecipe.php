@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -34,16 +34,27 @@ class URecipe extends Model
      */
     protected $guarded = ['id', 'user_id', 'deleted_at', 'created_at', 'updated_at'];
 
-    public function images(): HasMany
-    {
-        return $this->hasMany(URecipeImage::class, 'recipe_id');
+    // BelongsToMany の方を使うので一旦コメントアウト
+//    public function images(): HasMany
+//    {
+//        return $this->hasMany(URecipeImage::class, 'recipe_id');
+//    }
+
+    /**
+     * 多対多のテーブル定義。u_recipes は u_recipe_image テーブルを通して u_images テーブルと多対多の関係である
+     * @return BelongsToMany
+     */
+    public function images(): BelongsToMany {
+        return $this->belongsToMany(Uimage::class, 'u_recipe_images', 'recipe_id', 'image_id');
     }
 
     /**
      * 指定のuser_idのRecipeリストを取得する
      */
     public static function getList(int $userId): Collection {
-        return self::where('user_id', $userId)->get();
+        return self::with('images')
+            ->where('user_id', $userId)
+            ->get();
     }
 
     /**
