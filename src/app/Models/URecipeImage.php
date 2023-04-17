@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OutOfBoundsException;
 
 /**
  * @property int $recipe_id
  * @property int $image_id
+ * @property int $id
  */
 class URecipeImage extends Model
 {
@@ -30,16 +32,23 @@ class URecipeImage extends Model
     protected $guarded = ['id', 'recipe_id', 'deleted_at', 'created_at', 'updated_at'];
 
 
-    public function image(): BelongsTo {
-        return $this->belongsTo(UImage::class, 'id', 'image_id');
+    public function uImage(): BelongsTo {
+        return $this->belongsTo(UImage::class, 'image_id', 'id');
     }
 
 
-    public static function create(array $imageIds, int $recipeId, int $userId): Collection
+    /**
+     * u_recipes に所属する u_recipe_images を新規に作成する
+     * @param \Illuminate\Support\Collection $imageIds intのCollection
+     * @param URecipe $recipe
+     * @param int $userId
+     * @return URecipe
+     */
+    public static function create(\Illuminate\Support\Collection $imageIds, URecipe $recipe, int $userId): URecipe
     {
         //// 例外処理
         // $imageIdsの中で実際に存在している画像のimage_idを取得
-        $existingImageIds = UImage::whereIn('id', $imageIds)
+        $existingImageIds = UImage::whereIn('id', $imageIds->toArray())
             ->where('user_id', $userId)
             ->get()
             ->map(function (UImage $image, int $key) {
@@ -47,23 +56,32 @@ class URecipeImage extends Model
             });
 
         // 存在していないimage_idがあれば例外をthrow
-        $imageIdDiff = collect($imageIds)->diff($existingImageIds);
+        $imageIdDiff = $imageIds->diff($existingImageIds);
         if ($imageIdDiff->count() > 0) {
             $imageIdsStr = implode(',', $imageIdDiff->all());
             throw new OutOfBoundsException("image_id: $imageIdsStr は存在しません。" );
         }
 
         //// 保存
-        $recipeImages = new Collection();
-        foreach ($imageIds as $imageId) {
-            $recipeImage = new URecipeImage();
-            $recipeImage->recipe_id = $recipeId;
-            $recipeImage->image_id = $imageId;
-            $recipeImage->save();
+        $imageIds->each(function(int $imageId, int $key) use ($recipe) {
+            $recipe->images()->create([
+                'image_id' => $imageId,
+            ]);
+        })->toArray();
 
-            $recipeImages->add($recipeImage);
-        }
+        return URecipe::findByIdAndUserId($recipe->id, $userId);
+    }
 
-        return $recipeImages;
+
+    /**
+     * u_recipes に所属する u_recipe_images をDELETEしてINSERTする
+     * @param URecipe $recipe
+     * @param int[] $updateImageIdsAry INSERTするrecipeId
+     * @param int $userId
+     * @return URecipe
+     */
+    public static function deleteInsert(URecipe $recipe, array $updateImageIdsAry, int $userId): URecipe {
+        $recipe->images()->delete();
+        return self::create(collect($updateImageIdsAry), $recipe, $userId);
     }
 }

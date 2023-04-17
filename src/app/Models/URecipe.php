@@ -53,16 +53,17 @@ class URecipe extends Model
      * 指定のuser_idのRecipeリストを取得する
      */
     public static function getList(int $userId): Collection {
-        return self::with('images')
+        $images =  self::with('images.uImage')  // u_recipe_images とさらに u_images を先読みする
             ->where('user_id', $userId)
             ->get();
+        return $images;
     }
 
     /**
      * idとuserIdを指定してRecipeを取得する
      */
     public static function findByIdAndUserId(int $id, int $userId): ?URecipe {
-        return self::with('images')
+        return self::with('images.uImage')
             ->where('id', $id)
             ->where('user_id', $userId)
             ->first();

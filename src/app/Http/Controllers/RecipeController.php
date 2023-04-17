@@ -69,18 +69,20 @@ class RecipeController extends Controller
         }
 
         // 値をセットして保存
-        $recipe = new URecipe;
-        DB::transaction(function () use ($recipe, $validator) {
+        $createdRecipe = DB::transaction(function () use ( $validator) {
+            $recipe = new URecipe;
+
             $param = $validator->validated();
 
             $recipe->fillParams($param, Auth::id());
             $recipe->save();
 
-            $recipe->images = URecipeImage::create($param['image_ids'], $recipe->id, Auth::id());
+            return URecipeImage::create(
+                collect($param['image_ids']), $recipe, Auth::id());
         });
 
         return response()->json(
-            $recipe->toArray(),
+            $createdRecipe->toArray(),
             self::STATUS_CODE_CREATED);
     }
 
@@ -97,6 +99,8 @@ class RecipeController extends Controller
         $validator = Validator::make($request->input(), [
             'title' => ['string'],
             'description' => ['string'],
+            'image_ids' => ['array'],
+            'image_ids.*' => ['int'],
         ]);
 
         // 必須パラメータがない場合はエラー専用のメッセージを返す
@@ -115,12 +119,18 @@ class RecipeController extends Controller
                 self::STATUS_CODE_NOT_FOUND);
         }
 
-        DB::transaction(function () use ($validator, $recipe) {
-            $recipe->fillParams($validator->validated(), null);
+        $inputParams = $validator->validated();
+        $updatedRecipe = DB::transaction(function () use ($inputParams, $recipe) {
+            // u_recipes の値を更新
+            $recipe->fillParams($inputParams, null);
             $recipe->save();
+
+            // u_recipe_images の値を更新
+            return URecipeImage::deleteInsert(
+                $recipe, $inputParams['image_ids'] ?? [], Auth::id());
         });
 
-        return response()->json($recipe->toArray());
+        return response()->json($updatedRecipe->toArray());
     }
 
 
