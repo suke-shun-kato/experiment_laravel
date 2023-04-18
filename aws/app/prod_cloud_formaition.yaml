@@ -18,7 +18,7 @@ Parameters:
 #    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64 # amazon linux 2023 の最新
 
 Resources:
-  ### VPC
+  ########## VPC ##########
   VPC:
     Type: 'AWS::EC2::VPC'
     Properties:
@@ -39,7 +39,7 @@ Resources:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
 
-  ### パブリックサブネット関連
+  ########## パブリックサブネット関連 ##########
   # サブネット
   PublicSubnet:
     Type: 'AWS::EC2::Subnet'
@@ -73,7 +73,7 @@ Resources:
       GatewayId: !Ref InternetGateway
     DependsOn: VPCGatewayAttachment
 
-  ### 踏み台サーバー関連
+  ########## 踏み台サーバー関連 ##########
   # 踏み台サーバー
   BastionServer:
     Type: 'AWS::EC2::Instance'
@@ -114,7 +114,7 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-bastionServer-securityGroup'
 
-  ### アプリケーションサーバー関連
+  ########## アプリケーションサーバー関連 ##########
   # アプリケーションサーバー
   AppServer:
     Type: 'AWS::EC2::Instance'
@@ -142,7 +142,7 @@ Resources:
         # 実行ログは /var/log/cloud-init-output.log で見られる
         'Fn::Base64': !Sub |
           #!/bin/bash -x
-          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app_server_init.sh | bash -ex
+          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
@@ -150,7 +150,7 @@ Resources:
   AppRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Sub '${AWS::StackName}-deploy-role'
+      RoleName: !Sub '${AWS::StackName}-iam-role'
       AssumeRolePolicyDocument:   # この権限をEC2インスタンスに委譲
         Version: '2012-10-17'
         Statement:
@@ -198,7 +198,7 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-appServer-securityGroup'
 
-  ### DB関連
+  ########## DB関連 ##########
   DatabaseCluster:
     Type: 'AWS::RDS::DBCluster'
     DeletionPolicy: Delete  # TODO 色々実験中なのでひとまずDelete
@@ -318,7 +318,7 @@ Resources:
       SubnetId: !Ref DatabasePrivateSubnetB
       RouteTableId: !Ref PrivateSubnetRouteTable
 
-#  ### DB関連（普通のMySQL）
+#  ########## DB関連（普通のMySQL） ##########
 #  Database:
 #    Type: 'AWS::RDS::DBInstance'
 #    DeletionPolicy: Delete
@@ -395,7 +395,7 @@ Resources:
 #      SubnetId: !Ref DatabasePrivateSubnetB
 #      RouteTableId: !Ref PrivateSubnetRouteTable
 
-  # Code Deploy
+  ########## Code Deploy ##########
   CodeDeploy:
     Type: AWS::CodeDeploy::Application
     Properties:
@@ -433,6 +433,35 @@ Resources:
         Events:
           - DEPLOYMENT_FAILURE
 
+  ########## S3関連 ##########
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    # Stackを削除したときの動作: 削除する
+    DeletionPolicy: Delete  # TODO 今は色々試しているのでdelete
+    Properties:
+      # ACL無効
+      AccessControl: Private
+      BucketName: !Sub '${AWS::StackName}-s3-bucket'
+      # デフォルトの暗号化
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:  # Amazon S3 マネージドキー (SSE-S3)
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true  # 有効
+
+  # バケットポリシー
+  BackupPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - 's3:GetObject'
+            Resource:
+              - !Sub "arn:aws:s3:::${AWS::StackName}-s3-bucket/*"
 Outputs:
   BastionServerPublicName:
     Value: !Sub ${BastionServer.PublicDnsName}
@@ -449,3 +478,6 @@ Outputs:
   Database2Endpoint:
     Value: !GetAtt DatabaseInstance2.Endpoint.Address
     Description: 'Endpoint name of Database 2.'
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Description: 'S3 bucket name.'

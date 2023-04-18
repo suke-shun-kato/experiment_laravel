@@ -44,14 +44,14 @@ sudo systemctl enable php-fpm
 #### nginxとphp-fpmの設定をする
 # php-fpmの設定をする
 sudo mv /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf.bk
-sudo curl -o /etc/php-fpm.d/www.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/www.conf
+sudo curl -o /etc/php-fpm.d/www.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/app/www.conf
 
 # php-fpm を再起動
 sudo systemctl restart php-fpm.service
 
 # nginxの設定をする
 sudo mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bk
-sudo curl -o /etc/nginx/nginx.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/nginx.conf
+sudo curl -o /etc/nginx/nginx.conf https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/app/nginx.conf
 
 # 設定が正しいかテスト
 sudo nginx -t
@@ -145,3 +145,5 @@ sudo chmod +x install
 sudo ./install auto
 # インストール確認
 sudo service codedeploy-agent status
+# インストール用のファイルを削除
+sudo rm -f install
