@@ -16,11 +16,12 @@ services:
       - ./docker/php/php.ini:/usr/local/etc/php/php.ini
     working_dir: /work  # Dockerfileで定義した命令を実行するための作業用ディレクトリ
     environment:  # コンテナ内の環境変数
-      - DB_CONNECTION=mysql
-      - DB_HOST=db-mysql
       - DB_DATABASE=${DB_NAME}
-      - DB_USERNAME=${DB_USER}
-      - DB_PASSWORD=${DB_PASS}
+      - DB_USERNAME=${DB_ROOT_USER}
+      - DB_PASSWORD=${DB_ROOT_PASS}
+      - AWS_ACCESS_KEY_ID=${MINIO_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_PASS}
+      - AWS_BUCKET=${MINIO_BUCKET_NAME}
       - TZ=${TZ}
   server-nginx:
     image: nginx:1.23.3-alpine
@@ -28,7 +29,7 @@ services:
       - app-php
     # ホストでポート`8080`をdocker上では`80`にする
     ports:
-      - 8080:80
+      - "8080:80"
     volumes:
       - ./src:/work
       - ./logs:/var/log/nginx
@@ -38,48 +39,32 @@ services:
   db-mysql:
     image: mysql:8.0
     ports:
-      - 13306:3306
+      - "13306:3306"
     volumes:
       - db-store:/var/lib/mysql
       - ./logs:/var/log/mysql
       - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
     environment:
       - MYSQL_DATABASE=${DB_NAME}
-      - MYSQL_USER=${DB_USER}
-      - MYSQL_PASSWORD=${DB_PASS}
-      - MYSQL_ROOT_PASSWORD=${DB_PASS}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
       - TZ=${TZ}
 
   minio:
-    container_name: minio
-    command: ['server', '/data', '--console-address', ':9001']
-    environment:
-      - MINIO_ROOT_USER=${MINIO_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_PASS}
-    image: quay.io/minio/minio:latest
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - ./docker/minio/data:/data
-    restart: unless-stopped
-
-  mc:
-    image: minio/mc
-    container_name: mc
-    depends_on:
-      - minio
+    build:
+      context: ./docker/minio
+      args:
+        - BUCKET_NAME=${MINIO_BUCKET_NAME}
     environment:
       MINIO_ROOT_USER: ${MINIO_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_PASS}
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set myminio http://minio:9000 ${MINIO_USER} ${MINIO_PASS};
-      mc mb myminio/sample;
-      mc cp init_data/* myminio/sample;
-      "
+    command: server /data --address :9000 --console-address :9090
     volumes:
-      - ./docker/mc/init_data:/init_data
+      - minio-store:/data
+    ports:
+      - "9000:9000"   # APIのポート
+      - "9090:9090"   # コンソールのポート
+
 # ボリュームの定義
 volumes:
   db-store:
+  minio-store:
