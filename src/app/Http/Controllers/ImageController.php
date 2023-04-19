@@ -96,7 +96,14 @@ class ImageController extends Controller
             throw new RuntimeException("s3に正しく保存できませんでした");
         }
 
-        return $result["ObjectURL"];
+        return self::replaceUrl(
+            $result["ObjectURL"],
+            config('filesystems.disks.s3.endpoint'),
+            config('filesystems.disks.s3.endpoint_host'));
+    }
+
+    private static function replaceUrl(string $objectUrl, string $endpoint, ?string $hostEndpoint): string {
+        return is_null($hostEndpoint) ? $objectUrl : str_replace($endpoint, $hostEndpoint, $objectUrl);
     }
 
 }
