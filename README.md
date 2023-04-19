@@ -35,13 +35,18 @@
 
 ## レシピ関連API
 
-| メソッド   |         URL          | Request Body           | 説明                |
-|--------|:--------------------:|------------------------|-------------------|
-| GET    |       /recipes       | -                      | レシピ一覧を取得          |
-| GET    | /recipes/{recipe_id} | -                      | recipe_id のレシピを取得 |
-| POST   |       /recipes       | `title`, `description` | レシピを新規に作成         |
-| PATCH  | /recipes/{recipe_id} | `title`, `description` | recipe_id のレシピを更新            |
-| DELETE | /recipes/{recipe_id} | -                      | recipe_id のレシピを削除            |
+| メソッド   |         URL          | Request Body                        | 説明                |
+|--------|:--------------------:|-------------------------------------|-------------------|
+| GET    |       /recipes       | -                                   | レシピ一覧を取得          |
+| GET    | /recipes/{recipe_id} | -                                   | recipe_id のレシピを取得 |
+| POST   |       /recipes       | `title`, `description`, `image_ids` | レシピを新規に作成         |
+| PATCH  | /recipes/{recipe_id} | `title`, `description`, `image_ids` | recipe_id のレシピを更新 |
+| DELETE | /recipes/{recipe_id} | -                                   | recipe_id のレシピを削除 |
+
+## 画像関連
+| メソッド |   URL   | Request Body | 説明        |
+|------|:-------:|--------------|-----------|
+| GET  | /images | `image`      | 画像をアップロード |
 
 # 初期設定（ローカル）
 
@@ -81,13 +86,38 @@ docker-compose exec app-php php artisan db:seed
 |  composer  | 2.5.4  | docker/php/Dockerfile                                        |
 
 
-# Docker&laravel コマンドメモ
+# Docker コマンドメモ
+
+## コンテナ立ち上げる
+
+```shell
+docker compose up -d
+```
+
 ## コンテナに入る
 
 ```shell
-docker-compose exec app-php ash
+docker compose exec app-php ash
 ```
 
+## コンテナ削除
+
+### ボリュームは削除しない
+```shell
+docker compose down
+```
+
+### ボリュームは削除する（DBデータやS3データごと削除）
+```shell
+docker compose down -v
+```
+
+## ローカルでMinIO（S3）にアップロードしたファイルを見る
+
+http://localhost:9090/ にアクセスしてコンソールから見る
+
+ユーザー名は `.env` の `MINIO_USER` と `MINIO_PASS` の値
+# laravel コマンドメモ
 
 ## マイグレーション
 
