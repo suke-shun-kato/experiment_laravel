@@ -13,7 +13,7 @@ use RuntimeException;
 
 class ImageController extends Controller
 {
-    private const IMAGE_STORAGE_LARAVEL_PATH = '/public/img';
+    private const IMAGE_STORAGE_LARAVEL_PATH = '/img';
 
     private static function getStorageAbsolutePath(string $laravelPath): string {
         // __DIR__はこのファイルのルートからのパス
