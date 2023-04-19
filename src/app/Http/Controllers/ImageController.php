@@ -102,8 +102,8 @@ class ImageController extends Controller
             config('filesystems.disks.s3.endpoint_host'));
     }
 
-    private static function replaceUrl(string $objectUrl, string $endpoint, ?string $hostEndpoint): string {
-        return is_null($hostEndpoint) ? $objectUrl : str_replace($endpoint, $hostEndpoint, $objectUrl);
+    private static function replaceUrl(string $objectUrl, ?string $endpoint, ?string $hostEndpoint): string {
+        return is_null($hostEndpoint) || is_null($endpoint) ? $objectUrl : str_replace($endpoint, $hostEndpoint, $objectUrl);
     }
 
 }
