@@ -455,12 +455,13 @@ Resources:
     Properties:
       Bucket: !Ref S3Bucket
       PolicyDocument:
+        # 全ユーザーに指定バケットのオブジェクト取得を可能にする（EC2からのアップロードなどはIAMロールで定義）
         Statement:
           - Effect: Allow
-            Principal: '*'
+            Principal: '*'  # 全ユーザーに
             Action:
-              - 's3:GetObject'
-            Resource:
+              - 's3:GetObject'  # S3のオブジェクト取得処理を
+            Resource:           # 下記のS3バケットに対して許可する
               - !Sub "arn:aws:s3:::${AWS::StackName}-s3-bucket/*"
 Outputs:
   BastionServerPublicName:
