@@ -7,8 +7,24 @@
 
 - laravelを使用
 - Dockerでローカル環境を構築
-- CloudFormation でAWSでリソースを定義
-- CodeDeployはCloudFormationで定義しているが、CodePipelineはまだ定義していない
+- CloudFormation でAWSで本番環境構築
+
+
+# 本番環境
+
+## 構成
+- アプリケーションサーバーはALBとオートスケーリングで複数台構成（現在CloudFormationではALBとオートスケーリングの機能は作成中なので、CloudFormation上では1台構成になってます）
+- 踏み台サーバー経由でアプリケーションサーバーにSSH接続
+- DBはAurora（MySQL）でDBクラスター使用（マルチAZ構成でレプリケーション）
+- CodeDeployとCodePipelineでGithubからデプロイ（CloudFormationでCodeDeployは定義しているが、CodePipelineはまだ定義していない）
+
+## 初期設定
+
+1. AWSのCloudFormationで `cloud_formaition_prod.yaml` ファイルを実行してサーバーを作成する
+1. AWSのCodeDeployを実行してソースコードをデプロイする
+1. `cp .env.prod.example .env` を実行した後、手動で `.env` ファイルを編集する
+1. `php artisan key:generate` を実行する
+2. `php artisan migrate` を実行する
 
 # 作成中のAPI
 
@@ -68,14 +84,6 @@ docker-compose exec app-php php artisan migrate
 # laravelでシーダー実行
 docker-compose exec app-php php artisan db:seed
 ```
-
-# 初期設定（本番）
-
-1. AWSのCloudFormationで `cloud_formaition_prod.yaml` ファイルを実行してサーバーを作成する
-1. AWSのCodeDeployを実行してソースコードをデプロイする
-1. `cp .env.prod.example .env` を実行した後、手動で `.env` ファイルを編集する
-1. `php artisan key:generate` を実行する
-2. `php artisan migrate` を実行する
 
 # バージョン
 
