@@ -8,9 +8,3 @@ sudo find /var/www -type f -exec chmod 664 {} \;
 
 cd /var/www
 composer install
-
-# envファイルの設定、初回だけ
-#if [ -f .env ]; then
-#  php artisan migrate
-#fi
-

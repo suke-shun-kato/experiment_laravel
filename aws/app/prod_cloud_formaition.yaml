@@ -9,6 +9,7 @@ Parameters:
     Description: 'Your public IP address to allow SSH access'
     Type: String
     AllowedPattern: '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
+    Default: '1.1.1.1'
     ConstraintDescription: 'Enter a valid IPv4 address'
   EC2ImageId:
     Description: 'ami'
@@ -16,6 +17,19 @@ Parameters:
     # TODO 無料枠のは下記のであっているか確認する
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2  # Amazon Linux 2 の最新
 #    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64 # amazon linux 2023 の最新
+  DBUserName:
+    Description: 'DB user name'
+    Type: String
+    Default: user1
+  DBPassword:
+    Description: 'DB password'
+    Type: String
+    Default: password
+  DBPort:
+    Description: 'DB port from app server to db'
+    Type: Number
+    Default: 3306
+    NoEcho: true
 
 Resources:
   ########## VPC ##########
@@ -143,6 +157,14 @@ Resources:
         'Fn::Base64': !Sub |
           #!/bin/bash -x
           curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
+          cp .env.prod.example .env
+          export DB_HOST=${DatabaseCluster.Endpoint.Address}
+          export DB_PORT=${DBPort}
+          export DB_USERNAME=${DBUserName}
+          export DB_PASSWORD=${DBPassword}
+          export AWS_DEFAULT_REGION=${AWS::Region}
+          export AWS_BUCKET=${S3Bucket}
+          php artisan key:generate
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
@@ -206,8 +228,8 @@ Resources:
       Engine: aurora-mysql
       EngineVersion: '5.7.mysql_aurora.2.11.2'
       DBClusterIdentifier: !Sub '${AWS::StackName}-databaseCluster' # DB クラスター識別子
-      MasterUsername: admin     # TODO IDとパスワードはここに記載しない方がよいのでどうにかする
-      MasterUserPassword: password  # TODO 同上
+      MasterUsername: !Ref DBUserName
+      MasterUserPassword: !Ref DBPassword
       BackupRetentionPeriod: 7  # 自動スナップショットの保存日数
       PreferredBackupWindow: 19:00-19:30  # スナップショットの時間を日本時間の4:00〜4:30に設定
       StorageEncrypted: true  # 暗号化を有効に
@@ -256,8 +278,8 @@ Resources:
       SecurityGroupIngress:
         # AppサーバーからDB接続
         - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
+          FromPort: !Ref DBPort
+          ToPort: !Ref DBPort
           SourceSecurityGroupId: !Ref AppSecurityGroup
         # 踏み台サーバーからDB接続
         - IpProtocol: tcp
@@ -448,6 +470,12 @@ Resources:
           - ServerSideEncryptionByDefault:  # Amazon S3 マネージドキー (SSE-S3)
               SSEAlgorithm: AES256
             BucketKeyEnabled: true  # 有効
+      # ブロックパブリックアクセス
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True     # ACLでの設定のブロック
+        IgnorePublicAcls: True    # ACLでの設定のブロック
+        BlockPublicPolicy: false      # バケットポリシーでの設定のブロック、AWSアカウント内でのセキュリティ強化
+        RestrictPublicBuckets: false  # バケットポリシーでの設定のブロック、AWSアカウント間でのセキュリティ強化
 
   # バケットポリシー
   BackupPolicy:
@@ -459,10 +487,12 @@ Resources:
         Statement:
           - Effect: Allow
             Principal: '*'  # 全ユーザーに
-            Action:
-              - 's3:GetObject'  # S3のオブジェクト取得処理を
-            Resource:           # 下記のS3バケットに対して許可する
-              - !Sub "arn:aws:s3:::${AWS::StackName}-s3-bucket/*"
+            Resource:   # 下記のS3バケットに対して
+              - !Sub "arn:aws:s3:::${S3Bucket}/*"
+            Action:     # S3のオブジェクト取得処理を許可する
+              - 's3:GetObject'
+
+
 Outputs:
   BastionServerPublicName:
     Value: !Sub ${BastionServer.PublicDnsName}
@@ -473,12 +503,12 @@ Outputs:
   SshCommand:
     Value: !Sub "ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${BastionServer.PublicDnsName}' -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${AppServer.PublicDnsName}"
     Description: 'A ssh login command from terminal'
-  Database1Endpoint:
-    Value: !GetAtt DatabaseInstance1.Endpoint.Address
-    Description: 'Endpoint name of Database 1.'
-  Database2Endpoint:
-    Value: !GetAtt DatabaseInstance2.Endpoint.Address
-    Description: 'Endpoint name of Database 2.'
+  WriteDatabaseEndpoint:
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
+    Description: 'Endpoint name of Write database.'
+  ReadDatabaseEndpoint:
+    Value: !GetAtt DatabaseCluster.ReadEndpoint.Address
+    Description: 'Endpoint name of Read database.'
   S3BucketName:
     Value: !Ref S3Bucket
     Description: 'S3 bucket name.'
