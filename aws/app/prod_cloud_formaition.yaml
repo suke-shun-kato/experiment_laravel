@@ -137,6 +137,7 @@ Resources:
     Properties:
       LaunchTemplateName: !Sub '${AWS::StackName}-launchTemplate'
       LaunchTemplateData:
+        # サブネットは AppServerAutoScalingGroup の VPCZoneIdentifier で定義している
         NetworkInterfaces:
           - DeviceIndex: 0                  # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
             AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
@@ -164,8 +165,87 @@ Resources:
             APP_KEY=${LaravelAppKey}
             APP_URL=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
             EOF
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServerAutoScalingGroup --region ${AWS::Region}
 
+  AppServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AppServerLaunchTemplate
+        Version: !GetAtt AppServerLaunchTemplate.LatestVersionNumber
+      MaxSize: '4'    # インスタンスの最大数
+      MinSize: '2'    # インスタンスの最小数
+      DesiredCapacity: '2'  # インスタンスの望ましい数
+      HealthCheckGracePeriod: 300   # ヘルスチェックを開始するまでの猶予期間
+      HealthCheckType: ELB          # ELBのヘルスチェックを使ってインスタンスのステータスを関し
+      VPCZoneIdentifier:    # 異なる3つサブネットでインスタンスを起動
+        - !Ref AppServerPublicSubnetA
+        - !Ref AppServerPublicSubnetB
+        - !Ref AppServerPublicSubnetC
+      Tags:
+        - PropagateAtLaunch: true   # 下記のタグが AutoScalingGroup で作成したインスタンスに自動的に付けられる
+          Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-autoScaling-instance'
+    CreationPolicy:   # CloudFormation が指定数の成功シグナルを受信するかまたはタイムアウト期間が超過するまでは、ステータスが作成完了にならないようにします。
+      ResourceSignal:
+        Timeout: PT10M    # Period Time is 10 Minutes（最大で10分待機する）
+    UpdatePolicy:     # Auto Scalingグループのアップデート時に使用されるリソースシグナルのタイムアウト時間
+      AutoScalingRollingUpdate:
+        PauseTime: PT10M
+        WaitOnResourceSignals: true   # AutoScalingグループが更新中に新しいインスタンスからのシグナルを待機するかどうか
+
+  # サブネット関連
+  AppServerPublicSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.0.4.0/24'
+      VpcId: !Ref VPC
+  # サブネットとルートテーブルの関連付け
+  AppServerPublicSubnetARouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppServerPublicSubnetA
+      RouteTableId: !Ref PublicSubnetRouteTable
+  AppServerPublicSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.0.5.0/24'
+      VpcId: !Ref VPC
+  AppServerPublicSubnetBRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppServerPublicSubnetB
+      RouteTableId: !Ref PublicSubnetRouteTable
+  AppServerPublicSubnetC:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.0.6.0/24'
+      VpcId: !Ref VPC
+  AppServerPublicSubnetCRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppServerPublicSubnetC
+      RouteTableId: !Ref PublicSubnetRouteTable
+#    Type: AWS::AutoScaling::AutoScalingGroup
+#    Properties:
+#      LaunchTemplate:
+#        LaunchTemplateId: !Ref myLaunchTemplate
+#        Version: !GetAtt myLaunchTemplate.LatestVersionNumber
+#      MaxSize: '1'
+#      MinSize: '0'
+#      DesiredCapacity: '1'
+#      VPCZoneIdentifier:
+#        - subnetIdAz1
+#        - subnetIdAz2
+#        - subnetIdAz3
+#      MetricsCollection:
+#        - Granularity: 1Minute
+#          Metrics:
+#            - GroupMinSize
+#            - GroupMaxSize
   ########## アプリケーションサーバー関連 ##########
   # アプリケーションサーバー
   AppServer:
