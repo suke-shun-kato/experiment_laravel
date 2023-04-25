@@ -7,4 +7,5 @@ sudo find /var/www -type d -exec chmod 2775 {} \;
 sudo find /var/www -type f -exec chmod 664 {} \;
 
 cd /var/www
+cp .env.prod.example .env
 composer install
