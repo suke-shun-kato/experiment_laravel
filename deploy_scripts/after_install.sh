@@ -7,10 +7,8 @@ sudo find /var/www -type d -exec chmod 2775 {} \;
 sudo find /var/www -type f -exec chmod 664 {} \;
 
 cd /var/www
+# コードで作成している環境変数を.envに追加
+cat .env.prod.example >> .env
+# cloudformation で作成した環境変数を.envに追加
+cat .env.userdata >> .env
 composer install
-
-# envファイルの設定、初回だけ
-#if [ -f .env ]; then
-#  php artisan migrate
-#fi
-
