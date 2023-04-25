@@ -157,6 +157,7 @@ Resources:
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
         # 実行ログは /var/log/cloud-init-output.log で見られる
+#  TODO       export APP_URL=${AppServer.PublicDnsName} はエラーが出るのでひとまずコメントアウト
         'Fn::Base64': !Sub |
           #!/bin/bash -x
           curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
@@ -166,7 +167,6 @@ Resources:
           export DB_PASSWORD=${DBPassword}
           export AWS_DEFAULT_REGION=${AWS::Region}
           export AWS_BUCKET=${S3Bucket}
-          export APP_URL=${AppServer.PublicDnsName}
           export APP_KEY=${LaravelAppKey}
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
