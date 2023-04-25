@@ -29,7 +29,10 @@ Parameters:
     Description: 'DB port from app server to db'
     Type: Number
     Default: 3306
-    NoEcho: true
+  LaravelAppKey:
+    Description: 'Laravel APP_KEY text.'
+    Type: String
+    Default: 'base64:ojvQ3y3na65/hTduwY0PI03u3KTClU8/ooEG7iMyEyw='
 
 Resources:
   ########## VPC ##########
@@ -164,6 +167,7 @@ Resources:
           export AWS_DEFAULT_REGION=${AWS::Region}
           export AWS_BUCKET=${S3Bucket}
           export APP_URL=${AppServer.PublicDnsName}
+          export APP_KEY=${LaravelAppKey}
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
