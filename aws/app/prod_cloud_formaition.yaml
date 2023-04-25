@@ -156,8 +156,8 @@ Resources:
         # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
         # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
         # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
+        # APP_URL=${AppServer.PublicDnsName} とすると循環参照になってエラーになるので、curl -s http://169.254.169.254 のメタデータからホスト名を取得する
         # 実行ログは /var/log/cloud-init-output.log で見られる
-#  TODO       export APP_URL=${AppServer.PublicDnsName} はエラーが出るのでひとまずコメントアウト
         'Fn::Base64': !Sub |
           #!/bin/bash -x
           curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
