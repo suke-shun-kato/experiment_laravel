@@ -157,14 +157,13 @@ Resources:
         'Fn::Base64': !Sub |
           #!/bin/bash -x
           curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
-          cp .env.prod.example .env
           export DB_HOST=${DatabaseCluster.Endpoint.Address}
           export DB_PORT=${DBPort}
           export DB_USERNAME=${DBUserName}
           export DB_PASSWORD=${DBPassword}
           export AWS_DEFAULT_REGION=${AWS::Region}
           export AWS_BUCKET=${S3Bucket}
-          php artisan key:generate
+          export APP_URL=${AppServer.PublicDnsName}
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
     DependsOn: VPCGatewayAttachment
 
