@@ -22,8 +22,6 @@
 
 1. AWSのCloudFormationで `cloud_formaition_prod.yaml` ファイルを実行してサーバーを作成する
 1. AWSのCodeDeployを実行してソースコードをデプロイする
-1. `cp .env.prod.example .env` を実行した後、手動で `.env` ファイルを編集する
-1. `php artisan key:generate` を実行する
 2. `php artisan migrate` を実行する
 
 # 作成中のAPI
