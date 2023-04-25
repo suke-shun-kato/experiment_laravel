@@ -131,6 +131,41 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-bastionServer-securityGroup'
 
+  ########## アプリケーションサーバー関連（ロードバランサー） ##########
+  AppServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${AWS::StackName}-launchTemplate'
+      LaunchTemplateData:
+        NetworkInterfaces:
+          - DeviceIndex: 0                  # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
+            AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
+            DeleteOnTermination: true       # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
+            Groups:
+              - !Ref AppSecurityGroup  # セキュリティーグループのID
+        ImageId: !Ref EC2ImageId
+        InstanceType: t2.micro
+        KeyName: !Ref KeyName
+        UserData:
+          # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
+          # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
+          # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
+          # APP_URL=${AppServer.PublicDnsName} とすると循環参照になってエラーになるので、curl -s http://169.254.169.254 のメタデータからホスト名を取得する
+          # 実行ログは /var/log/cloud-init-output.log で見られる
+          'Fn::Base64': !Sub |
+            #!/bin/bash -x
+            curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
+            cat <<EOF > /var/www/.env.userdata
+            DB_PORT=${DBPort}
+            DB_USERNAME=${DBUserName}
+            DB_PASSWORD=${DBPassword}
+            AWS_DEFAULT_REGION=${AWS::Region}
+            AWS_BUCKET=${S3Bucket}
+            APP_KEY=${LaravelAppKey}
+            APP_URL=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+            EOF
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
+
   ########## アプリケーションサーバー関連 ##########
   # アプリケーションサーバー
   AppServer:
