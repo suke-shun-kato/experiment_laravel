@@ -216,6 +216,7 @@ Resources:
             #!/bin/bash -x
             curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/autoscaling/aws/app/app_server_init.sh | bash -ex
             cat <<EOF > /var/www/.env.userdata
+            DB_HOST=${DatabaseCluster.Endpoint.Address}
             DB_PORT=${DBPort}
             DB_USERNAME=${DBUserName}
             DB_PASSWORD=${DBPassword}
