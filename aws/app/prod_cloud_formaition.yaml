@@ -214,7 +214,7 @@ Resources:
           # 実行ログは /var/log/cloud-init-output.log で見られる
           'Fn::Base64': !Sub |
             #!/bin/bash -x
-            curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
+            curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/feature/autoscaling/aws/app/app_server_init.sh | bash -ex
             cat <<EOF > /var/www/.env.userdata
             DB_PORT=${DBPort}
             DB_USERNAME=${DBUserName}
@@ -419,7 +419,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: !Ref DBPort
           ToPort: !Ref DBPort
-          SourceSecurityGroupId: !Ref AppSecurityGroup
+          SourceSecurityGroupId: !Ref AppServerSecurityGroup
         # 踏み台サーバーからDB接続
         - IpProtocol: tcp
           FromPort: 3306
