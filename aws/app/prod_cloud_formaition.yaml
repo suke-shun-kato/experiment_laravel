@@ -255,6 +255,18 @@ Resources:
         PauseTime: PT10M
         WaitOnResourceSignals: true   # AutoScalingグループが更新中に新しいインスタンスからのシグナルを待機するかどうか
 
+  # 動的スケーリングポリシー の設定
+  AppServerScalingPolicy:
+    Type: 'AWS::AutoScaling::ScalingPolicy'
+    Properties:
+      AutoScalingGroupName: !Ref AppServerAutoScalingGroup
+      PolicyType: TargetTrackingScaling   # ポリシータイプに ターゲット追跡スケーリング を設定
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:    # メトリクスタイプを
+          PredefinedMetricType: ASGAverageCPUUtilization  # 平均CPU使用率 に指定
+        TargetValue: 70   # ターゲット値
+      EstimatedInstanceWarmup: 60   # 新たに起動したEC2インスタンスをCPU使用率メトリクスから除外する秒数
+
   # アプリケーションサーバーのセキュリティーグループ
   AppServerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -320,64 +332,6 @@ Resources:
     Properties:
       SubnetId: !Ref AppServerPublicSubnetC
       RouteTableId: !Ref PublicSubnetRouteTable
-#    Type: AWS::AutoScaling::AutoScalingGroup
-#    Properties:
-#      LaunchTemplate:
-#        LaunchTemplateId: !Ref myLaunchTemplate
-#        Version: !GetAtt myLaunchTemplate.LatestVersionNumber
-#      MaxSize: '1'
-#      MinSize: '0'
-#      DesiredCapacity: '1'
-#      VPCZoneIdentifier:
-#        - subnetIdAz1
-#        - subnetIdAz2
-#        - subnetIdAz3
-#      MetricsCollection:
-#        - Granularity: 1Minute
-#          Metrics:
-#            - GroupMinSize
-#            - GroupMaxSize
-  ########## アプリケーションサーバー関連 ##########
-  # アプリケーションサーバー
-#  AppServer:
-#    Type: 'AWS::EC2::Instance'
-#    Properties:
-#      ImageId: !Ref EC2ImageId
-#      InstanceType: 't2.micro'
-#      KeyName: !Ref KeyName
-#      IamInstanceProfile: !Ref AppInstanceProfile
-#      NetworkInterfaces:
-#        - AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
-#          DeleteOnTermination: true # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
-#          DeviceIndex: '0'      # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
-#          SubnetId: !Ref PublicSubnet
-#          GroupSet:
-#            - !Ref AppSecurityGroup
-#      Tags:
-#        - Key: Name
-#          Value: !Sub '${AWS::StackName}-appServer-instance'
-#        - Key: CodeDeployKey
-#          Value: !Sub '${AWS::StackName}-appServer-deploy'
-#      UserData:
-#        # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
-#        # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
-#        # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
-#        # APP_URL=${AppServer.PublicDnsName} とすると循環参照になってエラーになるので、curl -s http://169.254.169.254 のメタデータからホスト名を取得する
-#        # 実行ログは /var/log/cloud-init-output.log で見られる
-#        'Fn::Base64': !Sub |
-#          #!/bin/bash -x
-#          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
-#          cat <<EOF > /var/www/.env.userdata
-#          DB_PORT=${DBPort}
-#          DB_USERNAME=${DBUserName}
-#          DB_PASSWORD=${DBPassword}
-#          AWS_DEFAULT_REGION=${AWS::Region}
-#          AWS_BUCKET=${S3Bucket}
-#          APP_KEY=${LaravelAppKey}
-#          APP_URL=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
-#          EOF
-#          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
-#    DependsOn: VPCGatewayAttachment
 
   # アプリケーションサーバーのロール
   AppRole:
@@ -404,32 +358,6 @@ Resources:
       InstanceProfileName: !Sub '${AWS::StackName}-deploy-instanceProfile'
       Roles:
         - !Ref AppRole
-#
-#  # アプリケーションサーバーのセキュリティーグループ
-#  AppSecurityGroup:
-#    Type: 'AWS::EC2::SecurityGroup'
-#    Properties:
-#      GroupDescription: 'Allowing incoming HTTP and HTTPS'
-#      VpcId: !Ref VPC
-#      SecurityGroupIngress:
-#        # SSH（踏み台ホストのセキュリティーグループのみOK）
-#        - IpProtocol: tcp
-#          FromPort: 22  # Port22〜
-#          ToPort: 22    # 22までの範囲を指定
-#          SourceSecurityGroupId: !Ref BastionSecurityGroup
-#        # HTTP
-#        - IpProtocol: tcp
-#          FromPort: 80
-#          ToPort: 80
-#          CidrIp: '0.0.0.0/0'
-#        # HTTPS
-#        - IpProtocol: tcp
-#          FromPort: 443
-#          ToPort: 443
-#          CidrIp: '0.0.0.0/0'
-#      Tags:
-#        - Key: Name
-#          Value: !Sub '${AWS::StackName}-appServer-securityGroup'
 
   ########## DB関連 ##########
   DatabaseCluster:
