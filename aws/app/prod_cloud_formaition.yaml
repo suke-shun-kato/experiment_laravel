@@ -132,6 +132,61 @@ Resources:
           Value: !Sub '${AWS::StackName}-bastionServer-securityGroup'
 
   ########## アプリケーションサーバー関連（ロードバランサー） ##########
+  AppServerLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Subnets:
+        - Ref: AppServerPublicSubnetA
+        - Ref: AppServerPublicSubnetB
+        - Ref: AppServerPublicSubnetC
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Scheme: 'internet-facing'     # ALBは外部からアクセス可能
+    DependsOn: VPCGatewayAttachment
+  LoadBalancerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'The security group for ALB'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # HTTP
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        # HTTPS
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+  LoadBalancerHttpListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      LoadBalancerArn: !Ref AppServerLoadBalancer
+      Protocol: HTTP    # ロードバランサーはHTTPの
+      Port: 80          # ポート80でListen
+
+  # ターゲットグループ
+  LoadBalancerTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Port: 80          # EC2上のサーバーはポート80でListen
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      # 以下ヘルスチェック関連
+      HealthCheckIntervalSeconds: 10   # 10秒おきに
+      HealthCheckProtocol: HTTP             # HTTPで
+      HealthCheckPath: '/health_check.html'  # /api/health_check へヘルスチェックのリクエストを投げる
+      Matcher:
+        HttpCode: '200-399'   # ヘルスチェックのレスポンスのHTTPステータスが200,300番台だと成功とする
+      HealthyThresholdCount: 2      # 2回連続でヘルスチェックに成功すると成功とみなす
+      UnhealthyThresholdCount: 2    # 2回連続でヘルスチェックに失敗すると失敗とみなす
+      HealthCheckTimeoutSeconds: 3  # 3秒間レスポンスが返ってこなければ失敗とする
+
+  ########## アプリケーションサーバー関連（オートスケーリング） ##########
   AppServerLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -143,7 +198,7 @@ Resources:
             AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
             DeleteOnTermination: true       # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
             Groups:
-              - !Ref AppSecurityGroup  # セキュリティーグループのID
+              - !Ref AppServerSecurityGroup  # セキュリティーグループのID
         ImageId: !Ref EC2ImageId
         InstanceType: t2.micro
         KeyName: !Ref KeyName
@@ -170,6 +225,8 @@ Resources:
   AppServerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
+      TargetGroupARNs:
+        - !Ref LoadBalancerTargetGroup
       LaunchTemplate:
         LaunchTemplateId: !Ref AppServerLaunchTemplate
         Version: !GetAtt AppServerLaunchTemplate.LatestVersionNumber
@@ -194,6 +251,27 @@ Resources:
         PauseTime: PT10M
         WaitOnResourceSignals: true   # AutoScalingグループが更新中に新しいインスタンスからのシグナルを待機するかどうか
 
+  # アプリケーションサーバーのセキュリティーグループ
+  AppServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allowing incoming HTTP.'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # SSH（踏み台ホストのセキュリティーグループのみOK）
+        - IpProtocol: tcp
+          FromPort: 22  # Port22〜
+          ToPort: 22    # 22までの範囲を指定
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+        # HTTP
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-securityGroup'
+
   # サブネット関連
   AppServerPublicSubnetA:
     Type: 'AWS::EC2::Subnet'
@@ -201,6 +279,9 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: '10.0.4.0/24'
       VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-publicSubnet-a'
   # サブネットとルートテーブルの関連付け
   AppServerPublicSubnetARouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -213,6 +294,9 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: '10.0.5.0/24'
       VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-publicSubnet-b'
   AppServerPublicSubnetBRouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
@@ -221,9 +305,12 @@ Resources:
   AppServerPublicSubnetC:
     Type: 'AWS::EC2::Subnet'
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !Select [2, !GetAZs '']
       CidrBlock: '10.0.6.0/24'
       VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-publicSubnet-c'
   AppServerPublicSubnetCRouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
@@ -618,9 +705,9 @@ Outputs:
   BastionServerPublicName:
     Value: !Sub ${BastionServer.PublicDnsName}
     Description: 'Public Name of Bastion Server to connect via SSH as user ec2-user.'
-  AppServerPublicName:
-    Value: !Sub ${AppServer.PublicDnsName}
-    Description: 'Public Name of App Server to connect via SSH as user ec2-user.'
+  LoadBalancerURL:
+    Value: !Sub 'http://${AppServerLoadBalancer.DNSName}'
+    Description: 'app endpoint'
   SshCommand:
     Value: !Sub "ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${BastionServer.PublicDnsName}' -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${AppServer.PublicDnsName}"
     Description: 'A ssh login command from terminal'
