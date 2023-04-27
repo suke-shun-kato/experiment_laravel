@@ -13,8 +13,8 @@
 # 本番環境
 
 ## 構成
-- アプリケーションサーバーはALBとオートスケーリングで複数台構成（現在CloudFormationではALBとオートスケーリングの機能は作成中なので、CloudFormation上では1台構成になってます）
-- 踏み台サーバー経由でアプリケーションサーバーにSSH接続
+- アプリケーションサーバーはALBとオートスケーリングで複数台構成
+- 踏み台サーバー経由でアプリケーションサーバー、DBサーバーにSSH接続
 - DBはAurora（MySQL）でDBクラスター使用（マルチAZ構成でレプリケーション）
 - CodeDeployとCodePipelineでGithubからデプロイ（CloudFormationでCodeDeployは定義しているが、CodePipelineはまだ定義していない）
 
@@ -24,20 +24,45 @@
 1. AWSのCodeDeployを実行してソースコードをデプロイする
 2. `php artisan migrate` を実行する
 
-# 作成中のAPI
+# 初期設定（ローカル）
+
+```shell
+# ソースDL
+git clone git@bitbucket.org:suke-shun-kato/laravel-exp.git
+
+# Docker立ち上げ
+cd laravel-exp
+docker-compose up -d --build
+
+# laravelなどをインストール
+docker-compose exec app-php composer install
+docker-compose exec app-php cp .env.local.example .env
+docker-compose exec app-php php artisan key:generate
+
+# laravelでマイグレーション実行
+docker-compose exec app-php php artisan migrate
+# laravelでシーダー実行
+docker-compose exec app-php php artisan db:seed
+```
+
+
+# API
 
 ## エンドポイント
 
-`{{各環境でのURL}}/api/`
+`{各環境でのURL}/api/`
 
 ## リクエストヘッダー
 
 下記ヘッダーをリクエストに含めること
 
+- `Authorization:Bearer {access_token}`
 - `Accept:application/json`
 - `Content-Type:application/json`
 - `X-Content-Type-Options:nosniff`
 - `X-Requested-With:XMLHttpRequest`
+
+※`{access_token}` は、`POST /users/login` 又は `POST /users` で取得した access_token の値
 
 
 ## ログイン関連API
@@ -62,26 +87,7 @@
 |------|:-------:|--------------|-----------|
 | GET  | /images | `image`      | 画像をアップロード |
 
-# 初期設定（ローカル）
 
-```shell
-# ソースDL
-git clone git@bitbucket.org:suke-shun-kato/laravel-exp.git
-
-# Docker立ち上げ
-cd laravel-exp
-docker-compose up -d --build
-
-# laravelなどをインストール
-docker-compose exec app-php composer install
-docker-compose exec app-php cp .env.local.example .env
-docker-compose exec app-php php artisan key:generate
-
-# laravelでマイグレーション実行
-docker-compose exec app-php php artisan migrate
-# laravelでシーダー実行
-docker-compose exec app-php php artisan db:seed
-```
 
 # バージョン
 
@@ -200,3 +206,6 @@ ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/bastion_id_rsa.pem ec2-user@bastion_
 ## Docker環境構築
 
 - [Qiita - 【初心者向け】20分でLaravel開発環境を爆速構築するDockerハンズオン](https://qiita.com/ucan-lab/items/56c9dc3cf2e6762672f4)
+
+# 参考書籍
+- [Amazon Web Servicesインフラサービス活用大全](https://amzn.to/3V9MfzU)
