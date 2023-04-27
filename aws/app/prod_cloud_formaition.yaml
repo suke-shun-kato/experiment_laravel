@@ -131,48 +131,208 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-bastionServer-securityGroup'
 
-  ########## アプリケーションサーバー関連 ##########
-  # アプリケーションサーバー
-  AppServer:
-    Type: 'AWS::EC2::Instance'
+  ########## アプリケーションサーバー関連（ロードバランサー） ##########
+  AppServerLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
-      ImageId: !Ref EC2ImageId
-      InstanceType: 't2.micro'
-      KeyName: !Ref KeyName
-      IamInstanceProfile: !Ref AppInstanceProfile
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
-          DeleteOnTermination: true # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
-          DeviceIndex: '0'      # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
-          SubnetId: !Ref PublicSubnet
-          GroupSet:
-            - !Ref AppSecurityGroup
+      Subnets:
+        - Ref: AppServerPublicSubnetA
+        - Ref: AppServerPublicSubnetB
+        - Ref: AppServerPublicSubnetC
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Scheme: 'internet-facing'     # ALBは外部からアクセス可能
+    DependsOn: VPCGatewayAttachment
+  LoadBalancerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'The security group for ALB'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # HTTP
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        # HTTPS
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+  LoadBalancerHttpListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      LoadBalancerArn: !Ref AppServerLoadBalancer
+      Protocol: HTTP    # ロードバランサーはHTTPの
+      Port: 80          # ポート80でListen
+
+  # ターゲットグループ
+  LoadBalancerTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Port: 80          # EC2上のサーバーはポート80でListen
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      # 以下ヘルスチェック関連
+      HealthCheckIntervalSeconds: 10   # 10秒おきに
+      HealthCheckProtocol: HTTP             # HTTPで
+      HealthCheckPath: '/health_check.html'  # /api/health_check へヘルスチェックのリクエストを投げる
+      Matcher:
+        HttpCode: '200-399'   # ヘルスチェックのレスポンスのHTTPステータスが200,300番台だと成功とする
+      HealthyThresholdCount: 2      # 2回連続でヘルスチェックに成功すると成功とみなす
+      UnhealthyThresholdCount: 2    # 2回連続でヘルスチェックに失敗すると失敗とみなす
+      HealthCheckTimeoutSeconds: 3  # 3秒間レスポンスが返ってこなければ失敗とする
+
+  ########## アプリケーションサーバー関連（オートスケーリング） ##########
+  AppServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${AWS::StackName}-launchTemplate'
+      LaunchTemplateData:
+        # サブネットは AppServerAutoScalingGroup の VPCZoneIdentifier で定義している
+        NetworkInterfaces:
+          - DeviceIndex: 0                  # インスタンスに関連付けるネットワークインターフェースのデバイスインデックス
+            AssociatePublicIpAddress: true  # パブリック IP アドレスをインスタンスに関連付けるか
+            DeleteOnTermination: true       # インスタンスが削除されたときにネットワークインターフェースを自動的に削除するか
+            Groups:
+              - !Ref AppServerSecurityGroup  # セキュリティーグループのID
+        ImageId: !Ref EC2ImageId
+        InstanceType: t2.micro
+        KeyName: !Ref KeyName
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - AppInstanceProfile
+            - Arn
+        UserData:
+          # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
+          # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
+          # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
+          # APP_URL=${AppServer.PublicDnsName} とすると循環参照になってエラーになるので、curl -s http://169.254.169.254 のメタデータからホスト名を取得する
+          # 実行ログは /var/log/cloud-init-output.log で見られる
+          'Fn::Base64': !Sub |
+            #!/bin/bash -x
+            curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/master/aws/app/app_server_init.sh | bash -ex
+            cat <<EOF > /var/www/.env.userdata
+            DB_HOST=${DatabaseCluster.Endpoint.Address}
+            DB_PORT=${DBPort}
+            DB_USERNAME=${DBUserName}
+            DB_PASSWORD=${DBPassword}
+            AWS_DEFAULT_REGION=${AWS::Region}
+            AWS_BUCKET=${S3Bucket}
+            APP_KEY=${LaravelAppKey}
+            APP_URL=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+            EOF
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServerAutoScalingGroup --region ${AWS::Region}
+
+  AppServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      TargetGroupARNs:
+        - !Ref LoadBalancerTargetGroup
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AppServerLaunchTemplate
+        Version: !GetAtt AppServerLaunchTemplate.LatestVersionNumber
+      MaxSize: '4'    # インスタンスの最大数
+      MinSize: '2'    # インスタンスの最小数
+      DesiredCapacity: '2'  # インスタンスの望ましい数
+      HealthCheckGracePeriod: 300   # ヘルスチェックを開始するまでの猶予期間
+      HealthCheckType: ELB          # ELBのヘルスチェックを使ってインスタンスのステータスを関し
+      VPCZoneIdentifier:    # 異なる3つサブネットでインスタンスを起動
+        - !Ref AppServerPublicSubnetA
+        - !Ref AppServerPublicSubnetB
+        - !Ref AppServerPublicSubnetC
+      Tags:
+        - PropagateAtLaunch: true   # 下記のタグが AutoScalingGroup で作成したインスタンスに自動的に付けられる
+          Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-autoScaling-instance'
+    CreationPolicy:   # CloudFormation が指定数の成功シグナルを受信するかまたはタイムアウト期間が超過するまでは、ステータスが作成完了にならないようにします。
+      ResourceSignal:
+        Timeout: PT10M    # Period Time is 10 Minutes（最大で10分待機する）
+    UpdatePolicy:     # Auto Scalingグループのアップデート時に使用されるリソースシグナルのタイムアウト時間
+      AutoScalingRollingUpdate:
+        PauseTime: PT10M
+        WaitOnResourceSignals: true   # AutoScalingグループが更新中に新しいインスタンスからのシグナルを待機するかどうか
+
+  # 動的スケーリングポリシー の設定
+  AppServerScalingPolicy:
+    Type: 'AWS::AutoScaling::ScalingPolicy'
+    Properties:
+      AutoScalingGroupName: !Ref AppServerAutoScalingGroup
+      PolicyType: TargetTrackingScaling   # ポリシータイプに ターゲット追跡スケーリング を設定
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:    # メトリクスタイプを
+          PredefinedMetricType: ASGAverageCPUUtilization  # 平均CPU使用率 に指定
+        TargetValue: 70   # ターゲット値
+      EstimatedInstanceWarmup: 60   # 新たに起動したEC2インスタンスをCPU使用率メトリクスから除外する秒数
+
+  # アプリケーションサーバーのセキュリティーグループ
+  AppServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allowing incoming HTTP.'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # SSH（踏み台ホストのセキュリティーグループのみOK）
+        - IpProtocol: tcp
+          FromPort: 22  # Port22〜
+          ToPort: 22    # 22までの範囲を指定
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+        # HTTP
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-appServer-instance'
-        - Key: CodeDeployKey
-          Value: !Sub '${AWS::StackName}-appServer-deploy'
-      UserData:
-        # /bin/bash -x: 実行したコマンドを出力するデバッグモードでBashを実行
-        # /opt/aws/bin/cfn-signal: CloudFormation リソースにシグナルを送信、
-        # -e: 終了ステータスを指定、 $?: 直前のコマンドの終了ステータス、--stack: 伝えるstack、--region: 伝えるスタックがあるリージョン
-        # APP_URL=${AppServer.PublicDnsName} とすると循環参照になってエラーになるので、curl -s http://169.254.169.254 のメタデータからホスト名を取得する
-        # 実行ログは /var/log/cloud-init-output.log で見られる
-        'Fn::Base64': !Sub |
-          #!/bin/bash -x
-          curl -s https://raw.githubusercontent.com/suke-shun-kato/experiment_laravel/main/aws/app/app_server_init.sh | bash -ex
-          cat <<EOF > /var/www/.env.userdata
-          DB_HOST=${DatabaseCluster.Endpoint.Address}
-          DB_PORT=${DBPort}
-          DB_USERNAME=${DBUserName}
-          DB_PASSWORD=${DBPassword}
-          AWS_DEFAULT_REGION=${AWS::Region}
-          AWS_BUCKET=${S3Bucket}
-          APP_KEY=${LaravelAppKey}
-          APP_URL=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
-          EOF
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
-    DependsOn: VPCGatewayAttachment
+          Value: !Sub '${AWS::StackName}-appServer-securityGroup'
+
+  # サブネット関連
+  AppServerPublicSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.0.4.0/24'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-publicSubnet-a'
+  # サブネットとルートテーブルの関連付け
+  AppServerPublicSubnetARouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppServerPublicSubnetA
+      RouteTableId: !Ref PublicSubnetRouteTable
+  AppServerPublicSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.0.5.0/24'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-publicSubnet-b'
+  AppServerPublicSubnetBRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppServerPublicSubnetB
+      RouteTableId: !Ref PublicSubnetRouteTable
+  AppServerPublicSubnetC:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: '10.0.6.0/24'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-appServer-publicSubnet-c'
+  AppServerPublicSubnetCRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppServerPublicSubnetC
+      RouteTableId: !Ref PublicSubnetRouteTable
 
   # アプリケーションサーバーのロール
   AppRole:
@@ -199,32 +359,6 @@ Resources:
       InstanceProfileName: !Sub '${AWS::StackName}-deploy-instanceProfile'
       Roles:
         - !Ref AppRole
-
-  # アプリケーションサーバーのセキュリティーグループ
-  AppSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Properties:
-      GroupDescription: 'Allowing incoming HTTP and HTTPS'
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        # SSH（踏み台ホストのセキュリティーグループのみOK）
-        - IpProtocol: tcp
-          FromPort: 22  # Port22〜
-          ToPort: 22    # 22までの範囲を指定
-          SourceSecurityGroupId: !Ref BastionSecurityGroup
-        # HTTP
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: '0.0.0.0/0'
-        # HTTPS
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: '0.0.0.0/0'
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-appServer-securityGroup'
 
   ########## DB関連 ##########
   DatabaseCluster:
@@ -286,7 +420,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: !Ref DBPort
           ToPort: !Ref DBPort
-          SourceSecurityGroupId: !Ref AppSecurityGroup
+          SourceSecurityGroupId: !Ref AppServerSecurityGroup
         # 踏み台サーバーからDB接続
         - IpProtocol: tcp
           FromPort: 3306
@@ -424,23 +558,21 @@ Resources:
 #      RouteTableId: !Ref PrivateSubnetRouteTable
 
   ########## Code Deploy ##########
-  CodeDeploy:
+  CodeDeployApplication:
     Type: AWS::CodeDeploy::Application
     Properties:
-      ApplicationName: !Sub '${AWS::StackName}-codeDeploy'
+      ApplicationName: !Sub '${AWS::StackName}-codeDeploy-application'
       # デプロイ対象がEC2（他にECSやLambdaを指定できる）
       ComputePlatform: Server
   DeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
+      DeploymentGroupName: !Sub '${AWS::StackName}-codeDeployment-group'
       ApplicationName:
-        Ref: CodeDeploy
-      # タグで、key:CodeDeployKey、Value:${AWS::StackName}-prod-appServer-deploy を設定しているec2をデプロイ対象にする
-      Ec2TagFilters:
-        - Key: CodeDeployKey
-          Value: !Sub '${AWS::StackName}-appServer-deploy'
-          Type: KEY_AND_VALUE
-      DeploymentGroupName: !Sub '${AWS::StackName}-deploymentGroup'
+        Ref: CodeDeployApplication
+      # デプロイ対象の AutoScalingGroups
+      AutoScalingGroups:
+        - Ref: AppServerAutoScalingGroup
       # Deploymentについては今回記述しない
 #      Deployment:
 #        # hooks の ApplicationStop イベントの実行が失敗したとき無視して次のイベントを続けるか
@@ -452,7 +584,16 @@ Resources:
 #              Ref:
 #            Repository:
 #              Ref: experiment_laravel
-      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      DeploymentConfigName: CodeDeployDefault.HalfAtATime  # デプロイ先インスタンスが複数ある場合、半分ずつデプロイする
+      # デプロイ中のトラフィックを管理するロードバランサーを選択
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          - Name: !GetAtt LoadBalancerTargetGroup.TargetGroupName
+      DeploymentStyle:
+        # ロードバランシングを有効にする をON
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+        # EC2/オンプレミス のデプロイ
+        DeploymentType: IN_PLACE
       ServiceRoleArn:
         Fn::GetAtt: [ AppRole, Arn ]  # AppRole の Arn属性の値を取得する
       # デプロイに失敗したときにロールバックする
@@ -503,11 +644,11 @@ Outputs:
   BastionServerPublicName:
     Value: !Sub ${BastionServer.PublicDnsName}
     Description: 'Public Name of Bastion Server to connect via SSH as user ec2-user.'
-  AppServerPublicName:
-    Value: !Sub ${AppServer.PublicDnsName}
-    Description: 'Public Name of App Server to connect via SSH as user ec2-user.'
+  LoadBalancerURL:
+    Value: !Sub 'http://${AppServerLoadBalancer.DNSName}'
+    Description: 'app endpoint'
   SshCommand:
-    Value: !Sub "ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${BastionServer.PublicDnsName}' -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${AppServer.PublicDnsName}"
+    Value: !Sub "ssh -o ProxyCommand='ssh -W %h:%p -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@${BastionServer.PublicDnsName}' -i ~/.ssh/aws_goodistory_tokyo.pem ec2-user@xxxxxxxxx"
     Description: 'A ssh login command from terminal'
   WriteDatabaseEndpoint:
     Value: !GetAtt DatabaseCluster.Endpoint.Address

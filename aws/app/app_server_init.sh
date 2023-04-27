@@ -71,10 +71,9 @@ sudo chmod 2775 /var/www
 # ec2-userを nginx グループに追加
 sudo usermod -a -G nginx ec2-user
 
-# テスト
 # 確認
-# mkdir /var/www/public
-# echo "<?php phpinfo(); " > /var/www/public/index.php
+mkdir /var/www/public
+echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title></title></head><body>nginx is alive.</body></html>' > /var/www/public/health_check.html
 # ブラウザでアクセスして確認
 
 # 削除
