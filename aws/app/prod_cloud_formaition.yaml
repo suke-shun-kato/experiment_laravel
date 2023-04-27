@@ -238,7 +238,7 @@ Resources:
       MaxSize: '4'    # インスタンスの最大数
       MinSize: '2'    # インスタンスの最小数
       DesiredCapacity: '2'  # インスタンスの望ましい数
-      HealthCheckGracePeriod: 300   # ヘルスチェックを開始するまでの猶予期間
+      HealthCheckGracePeriod: 300   # ヘルスチェックを開始するまでの猶予期間（秒数）
       HealthCheckType: ELB          # ELBのヘルスチェックを使ってインスタンスのステータスを関し
       VPCZoneIdentifier:    # 異なる3つサブネットでインスタンスを起動
         - !Ref AppServerPublicSubnetA
@@ -266,7 +266,7 @@ Resources:
         PredefinedMetricSpecification:    # メトリクスタイプを
           PredefinedMetricType: ASGAverageCPUUtilization  # 平均CPU使用率 に指定
         TargetValue: 70   # ターゲット値
-      EstimatedInstanceWarmup: 60   # 新たに起動したEC2インスタンスをCPU使用率メトリクスから除外する秒数
+      EstimatedInstanceWarmup: 300   # 新たに起動したEC2インスタンスをCPU使用率メトリクスから除外する秒数
 
   # アプリケーションサーバーのセキュリティーグループ
   AppServerSecurityGroup:
