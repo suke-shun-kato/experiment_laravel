@@ -15,6 +15,12 @@ hooks:
       timeout: 300
       runas: ec2-user
 
+  # デプロイ前の BeforeInstall のタイミング
+  BeforeInstall:
+    - location: deploy_scripts/before_install.sh
+      timeout: 300
+      runas: ec2-user
+
   # デプロイ後の AfterInstall のタイミングで実行するスクリプト
   AfterInstall:
     - location: deploy_scripts/after_install.sh
