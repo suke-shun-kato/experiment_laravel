@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use RuntimeException;
 
 class ImageController extends Controller
@@ -25,6 +26,20 @@ class ImageController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // バリデータを作成
+        $validator = Validator::make($request->file(), [
+            'image' => ['required', 'image']
+        ]);
+
+        // 必須パラメータがない場合はエラー専用のメッセージを返す
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => "The image couldn't create",
+                'required' => 'image'
+            ], self::STATUS_CODE_BAD_REQUEST);
+
+        }
+
         // アップロードした image のファイルを保存
         $path = $request->file('image')
             ->store(self::IMAGE_STORAGE_LARAVEL_PATH);  // storage/app/public/img/xxxxxx に保存
