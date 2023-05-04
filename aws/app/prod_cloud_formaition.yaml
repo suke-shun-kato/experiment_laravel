@@ -33,6 +33,10 @@ Parameters:
     Description: 'Laravel APP_KEY text.'
     Type: String
     Default: 'base64:ojvQ3y3na65/hTduwY0PI03u3KTClU8/ooEG7iMyEyw='
+  AllowedOrigins:
+    Description: 'Access-Control-Allow-Origin '
+    Type: String
+    Default: '*'
 
 Resources:
   ########## VPC ##########
@@ -224,6 +228,7 @@ Resources:
             AWS_BUCKET=${S3Bucket}
             APP_KEY=${LaravelAppKey}
             APP_URL=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+            ALLOWED_ORIGINS=${AllowedOrigins}
             EOF
             /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServerAutoScalingGroup --region ${AWS::Region}
 
