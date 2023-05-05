@@ -59,7 +59,6 @@ docker-compose exec app-php php artisan db:seed
 - `Authorization:Bearer {access_token}`
 - `Accept:application/json`
 - `Content-Type:application/json`
-- `X-Content-Type-Options:nosniff`
 - `X-Requested-With:XMLHttpRequest`
 
 ※`{access_token}` は、`POST /users/login` 又は `POST /users` で取得した access_token の値
