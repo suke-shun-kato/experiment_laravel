@@ -3,6 +3,8 @@
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RecipeController;
+use App\Http\Middleware\ResponseHeaderMiddleware;
+use App\Http\Middleware\VerifyHeaderMiddleware;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,10 +21,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health_check', function () {
     return 'laravel is alive.';
 });
-
-Route::post('/users', [UserController::class, 'register']);
-Route::post('/users/login', [UserController::class, 'login']);
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware([VerifyHeaderMiddleware::class, ResponseHeaderMiddleware::class])->group(function() {
+    Route::post('/users', [UserController::class, 'register']);
+    Route::post('/users/login', [UserController::class, 'login']);
+});
+Route::middleware(['auth:sanctum', VerifyHeaderMiddleware::class, ResponseHeaderMiddleware::class])->group(function () {
     Route::get('/users/me', [UserController::class, 'getUser']);
 
     Route::get('/recipes', [RecipeController::class, 'index']);

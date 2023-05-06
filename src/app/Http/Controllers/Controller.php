@@ -18,5 +18,7 @@ class Controller extends BaseController
     public const STATUS_CODE_NOT_CONTENT = 204;
     public const STATUS_CODE_BAD_REQUEST = 400;
     public const STATUS_CODE_UNAUTHORIZED = 401;
+
+    public const STATUS_CODE_FORBIDDEN = 403;
     public const STATUS_CODE_NOT_FOUND = 404;
 }
