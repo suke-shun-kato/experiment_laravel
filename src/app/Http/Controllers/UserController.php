@@ -2,39 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserLoginRequest;
+use App\Http\Requests\UserSignUpRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
     /**
      * ユーザー登録処理
+     * @param UserSignUpRequest $request ユーザー登録処理用のフォームリクエスト
      * @throws ValidationException
      */
-    public function register(Request $request): JsonResponse
+    public function signUp(UserSignUpRequest $request): JsonResponse
     {
-        // $request->validate() でバリデーションをすると、
-        $validator = Validator::make($request->input(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-//            'password' => 'required|string|min:8',
-            'password' => 'required|string',
-        ]);
-
-        // 必須パラメータがない場合はエラー専用のメッセージを返す
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => $validator->errors()
-            ], self::STATUS_CODE_BAD_REQUEST);
-        }
         // バリデーション済みの値を取得
-        $validatedData = $validator->validated();
+        $validatedData = $request->validated();
 
         $accessToken = DB::transaction(function () use ($validatedData) {
             // ユーザーを登録
@@ -56,10 +44,9 @@ class UserController extends Controller
 
     /**
      * ログイン処理
-     * @param Request $request
      * @return JsonResponse
      */
-    public function login(Request $request): JsonResponse
+    public function login(UserLoginRequest $request): JsonResponse
     {
         // リクエストパラメータの email, passwordの値のみ抜き出す
         $params = $request->only('email', 'password');
