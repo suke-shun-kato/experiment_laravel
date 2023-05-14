@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RecipeStoreRequest;
+use App\Http\Requests\RecipeUpdateRequest;
 use App\Models\URecipe;
 use App\Models\URecipeImage;
 use Illuminate\Http\JsonResponse;
@@ -9,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class RecipeController extends Controller
 {
@@ -46,39 +49,21 @@ class RecipeController extends Controller
 
     /**
      * レシピを新規登録
-     * @param Request $request
+     * @param RecipeStoreRequest $request
      * @return JsonResponse
      */
-    public function store(Request $request): JsonResponse
+    public function store(RecipeStoreRequest $request): JsonResponse
     {
-        // バリデータを作成
-        $validator = Validator::make($request->input(), [
-            'title' => ['required', 'string'],
-            'description' => ['required', 'string'],
-            'image_ids' => ['array'],
-            'image_ids.*' => ['int'],
-        ]);
-
-        // 必須パラメータがない場合はエラー専用のメッセージを返す
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => "Recipe couldn't create",
-                'required' => 'title, description'
-            ], self::STATUS_CODE_BAD_REQUEST);
-
-        }
+        $inputParams = $request->validated();        // バリデーション済みの値を取得
 
         // 値をセットして保存
-        $createdRecipe = DB::transaction(function () use ( $validator) {
+        $createdRecipe = DB::transaction(function () use ($inputParams) {
             $recipe = new URecipe;
-
-            $param = $validator->validated();
-
-            $recipe->fillParams($param, Auth::id());
+            $recipe->fillParams($inputParams, Auth::id());
             $recipe->save();
 
             return URecipeImage::create(
-                collect($param['image_ids']), $recipe, Auth::id());
+                collect($inputParams['image_ids']), $recipe, Auth::id());
         });
 
         return response()->json(
@@ -88,30 +73,13 @@ class RecipeController extends Controller
 
     /**
      * レシピを更新
-     * @param Request $request
+     * @param RecipeUpdateRequest $request
      * @param int $id レシピID
      * @return JsonResponse
+     * @throws ValidationException
      */
-    public function update(Request $request, int $id): JsonResponse
+    public function update(RecipeUpdateRequest $request, int $id): JsonResponse
     {
-
-        // バリデータを作成
-        $validator = Validator::make($request->input(), [
-            'title' => ['string'],
-            'description' => ['string'],
-            'image_ids' => ['array'],
-            'image_ids.*' => ['int'],
-        ]);
-
-        // 必須パラメータがない場合はエラー専用のメッセージを返す
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => "Recipe couldn't update",
-                'required' => ''
-            ], self::STATUS_CODE_BAD_REQUEST);
-
-        }
-
         $recipe = URecipe::findByIdAndUserId($id, Auth::id());
         if (is_null($recipe)) {
             return response()->json(
@@ -119,7 +87,7 @@ class RecipeController extends Controller
                 self::STATUS_CODE_NOT_FOUND);
         }
 
-        $inputParams = $validator->validated();
+        $inputParams = $request->validated();        // バリデーション済みの値を取得
         $updatedRecipe = DB::transaction(function () use ($inputParams, $recipe) {
             // u_recipes の値を更新
             $recipe->fillParams($inputParams, null);
