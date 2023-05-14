@@ -61,8 +61,34 @@ docker-compose exec app-php php artisan db:seed
 - `Content-Type:application/json`
 - `X-Requested-With:XMLHttpRequest`
 
-※`{access_token}` は、`POST /users/login` 又は `POST /users` で取得した access_token の値
+※`{access_token}` は、`POST /users/login` 又は `POST /users` で取得した access_token の値。なお、その `POST /users/login`, `POST /users` では、`Authorization` ヘッダーは不要。
 
+## エラーレスポンス
+
+### バリデーションNG
+
+下記のエラーを返す
+
+#### HTTPステータスコード
+422 Unprocessable Content
+
+#### レスポンスパラメータ
+
+下記は、リクエストの`name`と`email`の値でバリデーションNGのとき。
+
+```
+{
+    "message": "The name field must be a string. (and 1 more error)",
+    "errors": {
+        "name": [
+            "The name field must be a string."
+        ],
+        "email": [
+            "The email has already been taken."
+        ]
+    }
+}
+```
 
 ## ログイン関連API
 | メソッド |     URL      | Request Body                | 説明              | 

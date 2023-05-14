@@ -22,7 +22,7 @@ Route::get('/health_check', function () {
     return 'laravel is alive.';
 });
 Route::middleware([VerifyHeaderMiddleware::class, ResponseHeaderMiddleware::class])->group(function() {
-    Route::post('/users', [UserController::class, 'register']);
+    Route::post('/users', [UserController::class, 'signUp']);
     Route::post('/users/login', [UserController::class, 'login']);
 });
 Route::middleware(['auth:sanctum', VerifyHeaderMiddleware::class, ResponseHeaderMiddleware::class])->group(function () {
