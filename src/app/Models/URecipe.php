@@ -36,9 +36,9 @@ class URecipe extends Model
     protected $guarded = ['id', 'user_id', 'deleted_at', 'created_at', 'updated_at'];
 
     // BelongsToMany の方を使うので一旦コメントアウト
-    public function images(): HasMany
+    public function uRecipeImages(): HasMany
     {
-        return $this->hasMany(URecipeImage::class, 'recipe_id');
+        return $this->hasMany(URecipeImage::class, 'u_recipe_id');
     }
 
 //    /**
@@ -53,7 +53,7 @@ class URecipe extends Model
      * 指定のuser_idのRecipeリストを取得する
      */
     public static function getList(int $userId): Collection {
-        $images =  self::with('images.uImage')  // u_recipe_images とさらに u_images を先読みする
+        $images =  self::with('uRecipeImages.uImage')  // u_recipe_images とさらに u_images を先読みする
             ->where('user_id', $userId)
             ->get();
         return $images;
@@ -63,7 +63,7 @@ class URecipe extends Model
      * idとuserIdを指定してRecipeを取得する
      */
     public static function findByIdAndUserId(int $id, int $userId): ?URecipe {
-        return self::with('images.uImage')
+        return self::with('uRecipeImages.uImage')
             ->where('id', $id)
             ->where('user_id', $userId)
             ->first();
