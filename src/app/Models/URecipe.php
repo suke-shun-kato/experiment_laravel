@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -40,6 +41,10 @@ class URecipe extends Model
 //    {
 //        return $this->hasMany(URecipeImage::class, 'u_recipe_id');
 //    }
+
+    public function user(): BelongsTo {
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
 
     /**
      * 多対多のテーブル定義。u_recipes は u_recipe_image テーブルを通して u_images テーブルと多対多の関係である

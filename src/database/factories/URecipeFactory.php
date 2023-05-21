@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\URecipe;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -40,8 +41,7 @@ class URecipeFactory extends Factory
 
         return [
             // 下記は1回ごとにユーザーをファクトリで作成する
-//            'user_id' => User::factory(),
-            'user_id' => 1,
+            'user_id' => User::factory(),
             'title' => fake()->unique()->randomElement($titles),
             'description' => fake()->text(100),
         ];
