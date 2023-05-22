@@ -36,12 +36,6 @@ class URecipe extends Model
      */
     protected $guarded = ['id', 'user_id', 'deleted_at', 'created_at', 'updated_at'];
 
-    // BelongsToMany の方を使うので一旦コメントアウト
-//    public function uRecipeImages(): HasMany
-//    {
-//        return $this->hasMany(URecipeImage::class, 'u_recipe_id');
-//    }
-
     public function user(): BelongsTo {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
@@ -50,24 +44,29 @@ class URecipe extends Model
      * 多対多のテーブル定義。u_recipes は u_recipe_image テーブルを通して u_images テーブルと多対多の関係である
      * @return BelongsToMany
      */
-    public function images(): BelongsToMany {
+    public function uImages(): BelongsToMany {
         return $this->belongsToMany(Uimage::class, 'u_recipe_images', 'u_recipe_id', 'u_image_id');
+    }
+
+    public function uRecipeImages(): HasMany
+    {
+        return $this->hasMany(URecipeImage::class, 'u_recipe_id');
     }
 
     /**
      * 指定のuser_idのRecipeリストを取得する
      */
     public static function getList(int $userId): Collection {
-        $images =  self::with('images')->where('user_id', $userId)
+        $uImages =  self::with('uImages')->where('user_id', $userId)
             ->get();
-        return $images;
+        return $uImages;
     }
 
     /**
      * idとuserIdを指定してRecipeを取得する
      */
     public static function findByIdAndUserId(int $id, int $userId): ?URecipe {
-        return self::with('images')
+        return self::with('uImages')
             ->where('id', $id)
             ->where('user_id', $userId)
             ->first();

@@ -64,8 +64,8 @@ class URecipeImage extends Model
 
         //// 保存
         $imageIds->each(function(int $imageId, int $key) use ($recipe) {
-            $recipe->uImages()->create([
-                'image_id' => $imageId,
+            $recipe->uRecipeImages()->create([
+                'u_image_id' => $imageId,
             ]);
         })->toArray();
 
@@ -81,7 +81,7 @@ class URecipeImage extends Model
      * @return URecipe
      */
     public static function deleteInsert(URecipe $recipe, array $updateImageIdsAry, int $userId): URecipe {
-        $recipe->uImages()->delete();
+        $recipe->uRecipeImages()->delete();
         return self::create(collect($updateImageIdsAry), $recipe, $userId);
     }
 }
