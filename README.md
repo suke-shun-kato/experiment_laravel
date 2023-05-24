@@ -103,8 +103,8 @@ docker-compose exec app-php php artisan db:seed
 |--------|:--------------------:|-------------------------------------|-------------------|
 | GET    |       /recipes       | -                                   | レシピ一覧を取得          |
 | GET    | /recipes/{recipe_id} | -                                   | recipe_id のレシピを取得 |
-| POST   |       /recipes       | `title`, `description`, `image_ids` | レシピを新規に作成         |
-| PATCH  | /recipes/{recipe_id} | `title`, `description`, `image_ids` | recipe_id のレシピを更新 |
+| POST   |       /recipes       | `title`, `description`, `u_image_ids` | レシピを新規に作成         |
+| PATCH  | /recipes/{recipe_id} | `title`, `description`, `u_image_ids` | recipe_id のレシピを更新 |
 | DELETE | /recipes/{recipe_id} | -                                   | recipe_id のレシピを削除 |
 
 ## 画像関連

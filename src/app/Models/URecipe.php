@@ -45,7 +45,8 @@ class URecipe extends Model
      * @return BelongsToMany
      */
     public function uImages(): BelongsToMany {
-        return $this->belongsToMany(Uimage::class, 'u_recipe_images', 'u_recipe_id', 'u_image_id');
+        return $this->belongsToMany(Uimage::class, 'u_recipe_images', 'u_recipe_id', 'u_image_id')
+            ->wherePivot('deleted_at', null);
     }
 
     public function uRecipeImages(): HasMany
