@@ -29,11 +29,11 @@ class URecipeImage extends Model
     /**
      * @var string[]
      */
-    protected $guarded = ['id', 'recipe_id', 'deleted_at', 'created_at', 'updated_at'];
+    protected $guarded = ['id', 'u_recipe_id', 'deleted_at', 'created_at', 'updated_at'];
 
 
     public function uImage(): BelongsTo {
-        return $this->belongsTo(UImage::class, 'image_id', 'id');
+        return $this->belongsTo(UImage::class, 'u_image_id', 'id');
     }
 
 
@@ -64,8 +64,8 @@ class URecipeImage extends Model
 
         //// 保存
         $imageIds->each(function(int $imageId, int $key) use ($recipe) {
-            $recipe->images()->create([
-                'image_id' => $imageId,
+            $recipe->uRecipeImages()->create([
+                'u_image_id' => $imageId,
             ]);
         })->toArray();
 
@@ -81,7 +81,7 @@ class URecipeImage extends Model
      * @return URecipe
      */
     public static function deleteInsert(URecipe $recipe, array $updateImageIdsAry, int $userId): URecipe {
-        $recipe->images()->delete();
+        $recipe->uRecipeImages()->delete();
         return self::create(collect($updateImageIdsAry), $recipe, $userId);
     }
 }

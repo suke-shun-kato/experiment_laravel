@@ -14,11 +14,22 @@ use RuntimeException;
 
 class ImageController extends Controller
 {
-    private const IMAGE_STORAGE_LARAVEL_PATH = '/img';
+    private const IMAGE_DIR_PATH_IN_APP_STORAGE = 'img/';
 
-    private static function getStorageAbsolutePath(string $laravelPath): string {
-        // __DIR__はこのファイルのルートからのパス
-        return realpath(__DIR__ . '/../../../storage/app/' . $laravelPath);
+    private const APP_STORAGE_DIR_PATH_IN_STORAGE = 'app/';
+
+    public const IMAGE_DIR_PATH_IN_STORAGE = self::APP_STORAGE_DIR_PATH_IN_STORAGE . self::IMAGE_DIR_PATH_IN_APP_STORAGE;
+
+    private static function getAbsolutePath(string $fileName): string {
+        return realpath(storage_path(self::IMAGE_DIR_PATH_IN_STORAGE . $fileName));
+    }
+
+    public static function getS3KeyName(string $fileName): string {
+        return self::IMAGE_DIR_PATH_IN_APP_STORAGE . time() . $fileName;
+    }
+
+    public static function getRelativePathInStorage(string $fileName): string {
+        return self::IMAGE_DIR_PATH_IN_APP_STORAGE . $fileName;
     }
 
     /**
@@ -40,21 +51,22 @@ class ImageController extends Controller
 
         }
 
-        // アップロードした image のファイルを保存
-        $path = $request->file('image')
-            ->store(self::IMAGE_STORAGE_LARAVEL_PATH);  // storage/app/public/img/xxxxxx に保存
+        // アップロードした image のファイルを storage/app/img/ に保存
+        $pathInAppStorage = $request->file('image')
+            ->store(self::IMAGE_DIR_PATH_IN_APP_STORAGE);
+        $imgFileName = basename($pathInAppStorage);
 
         $s3Url = null;
         try {
             // S3にアップロード
-            $s3Url = self::uploadToS3($path);
+            $s3Url = self::uploadToS3(self::getAbsolutePath($imgFileName), self::getS3KeyName($imgFileName));
         } catch (RuntimeException $e) {
             return response()->json(
                 ['message' => "couldn't upload to S3. errorClass:" . get_class($e) . ", errorMessage: {$e->getMessage()}"],
                 self::STATUS_CODE_BAD_REQUEST);
         } finally {
             // サーバー上のファイルを削除
-            Storage::delete($path);
+            Storage::delete($pathInAppStorage);
         }
 
         // DBに保存
@@ -92,19 +104,20 @@ class ImageController extends Controller
     }
 
     /**
-     * $laravelPath にあるファイルをS3にアップロードする
-     * @param string $laravelPath
+     * サーバー内にあるファイルをS3にアップロードする
+     * @param string $absolutePath アップロードするファイルの場所
+     * @param string|null $keyPath S3のkey名。null の場合は $absolutePath がkeyになる
      * @return string S3に保存した画像のURL
      */
-    private static function uploadToS3(string $laravelPath): string
+    public static function uploadToS3(string $absolutePath, ?string $keyPath = null): string
     {
         $s3Client = self::getS3Client();
 
         // ファイルをS3にアップロード
         $result = $s3Client->putObject([
             'Bucket' => config('filesystems.disks.s3.bucket'),
-            'Key' => $laravelPath,
-            'SourceFile' => self::getStorageAbsolutePath($laravelPath)
+            'Key' => $keyPath ?? $absolutePath,
+            'SourceFile' => $absolutePath,
         ]);
 
         if ($result["@metadata"]["statusCode"] != self::STATUS_CODE_OK) {

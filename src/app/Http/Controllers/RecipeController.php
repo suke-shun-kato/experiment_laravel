@@ -7,10 +7,8 @@ use App\Http\Requests\RecipeUpdateRequest;
 use App\Models\URecipe;
 use App\Models\URecipeImage;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class RecipeController extends Controller
@@ -118,7 +116,7 @@ class RecipeController extends Controller
 
         // recipesテーブルから削除
         DB::transaction(function () use ($recipe) {
-            $recipe->images()->delete();
+            $recipe->uRecipeImages()->delete();
             $recipe->delete();
         });
 
