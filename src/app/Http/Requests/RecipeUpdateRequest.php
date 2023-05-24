@@ -25,8 +25,8 @@ class RecipeUpdateRequest extends FormRequest
         return [
             'title' => ['string'],
             'description' => ['string'],
-            'image_ids' => ['array'],
-            'image_ids.*' => ['int'],
+            'u_image_ids' => ['array'],
+            'u_image_ids.*' => ['int'],
         ];
     }
 }

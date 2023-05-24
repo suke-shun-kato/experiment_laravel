@@ -61,7 +61,7 @@ class RecipeController extends Controller
             $recipe->save();
 
             return URecipeImage::create(
-                collect($inputParams['image_ids']), $recipe, Auth::id());
+                collect($inputParams['u_image_ids']), $recipe, Auth::id());
         });
 
         return response()->json(
@@ -93,7 +93,7 @@ class RecipeController extends Controller
 
             // u_recipe_images の値を更新
             return URecipeImage::deleteInsert(
-                $recipe, $inputParams['image_ids'] ?? [], Auth::id());
+                $recipe, $inputParams['u_image_ids'] ?? [], Auth::id());
         });
 
         return response()->json($updatedRecipe->toArray());
