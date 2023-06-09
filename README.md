@@ -208,6 +208,41 @@ docker-compose exec app-php php artisan make:model Models/Career
 
 ※モデル名は命名規則があるのでデータベースのテーブル名から 's' を抜いたものにしないといけない
 
+## テスト
+
+### テスト実行
+
+#### Laravelコマンドでのテスト
+
+```shell
+docker compose exec app-php php artisan test
+```
+
+こっちが分かりやすいのでオススメ
+
+#### PHP Unit のコマンドでのテスト
+
+```shell
+docker compose exec app-php ./vendor/bin/phpunit
+```
+
+### テストファイル作成
+
+#### 機能テスト
+
+```shell
+docker compose exec app-php php artisan make:test UserFetureTest
+```
+
+`tests/Feature` にファイルが作成される
+
+#### ユニットテスト
+
+```shell
+docker compose exec app-php php artisan make:test UserUnitTest --unit
+```
+
+`tests/Unit` にファイルが作成される
 
 # AWS用コマンドメモ
 
